@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout" layout:decorate="~{layout}">
+
+<head>
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
+    <title th:text="#{cas.mfa.inalogy.auth.pagetitle.register.error}">Inalogy Authenticator Registration Error</title>
+    <link href="../../static/css/cas.css" rel="stylesheet" th:remove="tag" />
+</head>
+
+<body id="cas">
+<main class="container mt-3 mb-3">
+    <div layout:fragment="content" id="login" class="mdc-card card p-4 m-auto w-lg-66">
+
+        <h2 th:text="#{cas.mfa.inalogy.auth.pagetitle.register.error}">Registration Error</h2>
+
+        <!-- Сообщение об ошибке -->
+        <div class="alert alert-danger my-3" role="alert"
+             th:if="${flowScope.registrationError}">
+            <span th:text="${flowScope.registrationError}">
+                Something went wrong during registration.
+            </span>
+        </div>
+
+        <div class="text-center my-4">
+            <form method="get" th:action="@{/login}">
+                <button class="mdc-button mdc-button--raised btn btn-primary" type="submit">
+                    <span class="mdc-button__label" th:text="#{cas.mfa.inalogy.auth.button.continue}">Continue</span>
+                </button>
+            </form>
+        </div>
+
+        <div class="text-center text-muted mt-2">
+            <small th:text="#{cas.mfa.inalogy.auth.tryagain.hint}">
+                If you believe this is a mistake, please try again or contact support.
+            </small>
+        </div>
+
+    </div>
+</main>
+</body>
+</html>

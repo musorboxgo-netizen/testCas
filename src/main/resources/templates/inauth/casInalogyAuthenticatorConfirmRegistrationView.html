@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout" layout:decorate="~{layout}">
+
+<head>
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
+    <title th:text="#{cas.mfa.inalogy.auth.pagetitle.confirmregister}">Inalogy Authenticator Devices</title>
+    <link href="../../static/css/cas.css" rel="stylesheet" th:remove="tag" />
+</head>
+
+<body id="cas">
+<main role="main" class="container mt-3 mb-3">
+    <div layout:fragment="content" class="mdc-card card p-4 m-auto w-lg-66">
+
+        <h2 th:text="#{cas.mfa.inalogy.auth.pagetitle.confirmregister}">Registered Inalogy Authenticator Devices</h2>
+        <p th:text="#{cas.mfa.inalogy.auth.devices.select}">
+            Please select your Inalogy Authenticator device:
+        </p>
+
+        <div class="card-text">
+            <div th:each="account : ${accounts}" class="border-bottom py-4">
+                <form th:name="${'form-' + account.id}" th:id="${'form-' + account.id}" method="post" th:action="@{/login}">
+                    <h4 class="d-flex align-items-center">
+                        <ul style="list-style: none">
+                            <code>
+                                <li><i class="mdi mdi-cellphone fas fa-mobile-alt me-2"></i>
+                                    <span th:id="${'name-' + account.id}" th:utext="${account.name}">Device Name</span>
+                                </li>
+                                <li><i class="mdi mdi-calendar-clock fas fa-calendar-alt me-2"></i>
+                                    <span th:utext="${account.registrationDate}">Registration Date</span>
+                                </li>
+                                <li><i class="mdi mdi-identifier fas fa-fingerprint me-2"></i>
+                                    <span th:id="${'id-' + account.id}" th:utext="${account.id}">Device Id</span>
+                                </li>
+                            </code>
+                        </ul>
+                    </h4>
+
+                    <button type="submit" class="mdc-button mdc-button--raised btn btn-primary me-2" name="_eventId" value="select">
+                        <span class="mdc-button__label" th:text="#{screen.welcome.button.select}">Select</span>
+                    </button>
+
+                    <button type="submit"
+                            th:if="${mfaDeviceRegistrationEnabled}"
+                            class="mdc-button mdc-button--raised btn btn-danger"
+                            name="_eventId" value="delete">
+                        <span class="mdc-button__label" th:text="#{screen.authentication.gauth.delete}">Delete</span>
+                    </button>
+
+                    <input type="hidden" name="execution" th:value="${flowExecutionKey}" />
+                    <input type="hidden" name="accountId" th:value="${account.id}" />
+                </form>
+            </div>
+        </div>
+
+        <form method="post" id="registerForm" th:action="@{/login}" th:if="${mfaDeviceRegistrationEnabled}">
+            <p th:utext="#{screen.authentication.gauth.reganotherdevice}"></p>
+            <input type="hidden" name="_eventId" value="register" />
+            <input type="hidden" name="execution" th:value="${flowExecutionKey}" />
+            <button class="mdc-button mdc-button--raised btn btn-primary me-2" name="register" accesskey="r">
+                <span class="mdc-button__label" th:text="#{screen.welcome.button.register}">Register New Device</span>
+            </button>
+        </form>
+
+    </div>
+</main>
+</body>
+
+</html>

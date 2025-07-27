@@ -1,0 +1,89 @@
+openapi: "3.0.1"
+info:
+  version: "1.0"
+  title: "Inalogy Messaging Service"
+  contact:
+    name: Inalogy
+    x-maintainers:
+      - Samuel Vanek
+servers:
+  - url: http://localhost:8080/api/
+  - url: https://ims.inalogy.com/api/
+security:
+  - ApiKeyAuth: []
+paths:
+  '/v1/push-notification/send':
+    post:
+      tags:
+        - Push Notification
+      summary: Send push notification to mobile device
+      security:
+        - ApiKeyAuth: []
+      operationId: sendPushNotification
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NotificationBody'
+      responses:
+        '204':
+          description: Notification sent correctly
+        '400':
+          description: Not successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CommonError'
+        '401':
+          description: 'Unauthorized'
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-KEY
+  schemas:
+    NotificationBody:
+      type: object
+      required:
+        - deviceId
+        - deviceType
+        - title
+        - body
+        - sound
+        - serializedData
+      properties:
+        deviceId:
+          type: string
+          example: f47ac10b-58cc-4372-a567-0e02b2c3d479
+          description: "Firebase device ID provider by mobile phone during registration"
+        deviceType:
+          $ref: '#/components/schemas/DeviceType'
+        title:
+          type: string
+          example: "Authentication required"
+          description: "Title that will show to user on push notification"
+        body:
+          type: string
+          example: "Some of your accounts triggered authentication flow. Check it out."
+          description: "Message that will show to user on push notification"
+        sound:
+          type: string
+          example: "default"
+        serializedData:
+          type: string
+          example: "{\"pushType\":\"CHALLENGE_CHOOSE\",\"dataForChallenge\":\"4,3,85\",\"keyId\":\"pushAuth1234\",\"callback\":\"https://example.com/callback\",\"validUntil\":1720000000}"
+          description: "Data that mobile phone is translating into shown UI elements"
+    CommonError:
+      type: object
+      required:
+        - message
+      properties:
+        message:
+          type: string
+    DeviceType:
+      type: string
+      enum:
+        - IOS
+        - ANDROID

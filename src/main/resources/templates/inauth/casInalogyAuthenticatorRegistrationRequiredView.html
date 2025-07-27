@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout" layout:decorate="~{layout}">
+
+<head>
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
+    <title th:text="#{cas.mfa.inalogy.auth.pagetitle.registrationrequired}">Inalogy Authenticator Registration Required</title>
+    <link href="../../static/css/cas.css" rel="stylesheet" th:remove="tag" />
+</head>
+
+<body id="cas">
+<main class="container mt-3 mb-3">
+    <div layout:fragment="content" id="login" class="mdc-card card p-4 m-auto w-lg-66">
+        <h2 th:text="#{cas.mfa.inalogy.auth.pagetitle.registrationrequired}">Inalogy Authenticator Registration Required</h2>
+        <p th:utext="#{cas.mfa.inalogy.auth.registrationrequired}">
+            Registration of your device is required for multi-factor authentication.
+            However, the system is currently configured to disallow device registration.
+            Please contact your system administrator for assistance.
+        </p>
+    </div>
+</main>
+</body>
+</html>

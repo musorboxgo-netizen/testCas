@@ -1,0 +1,38 @@
+version: '3'
+services:
+  cas1:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8443:8443"
+      - "8080:8080"
+      - "5005:5005"
+    volumes:
+      - ./etc/cas/config/log4j2.xml:/etc/cas/config/log4j2.xml
+      - ./etc/cas/services/:/etc/cas/services/
+    restart: always
+    container_name: ApereoCAS-App
+    networks:
+      - inalogy-network
+
+  database:
+    image: postgres:17
+    environment:
+      - POSTGRES_DB=cas
+      - POSTGRES_USER=casuser
+      - POSTGRES_PASSWORD=caspassword
+    ports:
+      - "5433:5432"
+    volumes:
+      - database-data:/var/lib/postgresql/data
+    restart: always
+    container_name: ApereoCAS-Database
+    networks:
+      - inalogy-network
+
+networks:
+  inalogy-network:
+
+volumes:
+  database-data:
