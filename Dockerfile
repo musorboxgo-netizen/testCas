@@ -2,6 +2,8 @@ ARG BASE_IMAGE="azul/zulu-openjdk:21"
 
 FROM $BASE_IMAGE AS overlay
 
+USER root
+
 ARG EXT_BUILD_COMMANDS=""
 ARG EXT_BUILD_OPTIONS=""
 
