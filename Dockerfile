@@ -13,7 +13,7 @@ COPY ./gradle/ gradle/
 COPY ./gradlew ./settings.gradle ./build.gradle ./gradle.properties ./lombok.config ./
 
 RUN mkdir -p ~/.gradle \
-    && /build/tomcat \
+    && mkdir -p /build/tomcat \
     && echo "org.gradle.daemon=false" >> ~/.gradle/gradle.properties \
     && echo "org.gradle.configureondemand=true" >> ~/.gradle/gradle.properties \
     && chmod 750 ./gradlew \
