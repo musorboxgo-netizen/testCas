@@ -8,7 +8,7 @@ import lombok.experimental.Accessors;
 @Setter
 @Accessors(chain = true)
 public class InalogyMessagingServiceProperties {
-    private boolean test = true;
-    private String messagingServiceUrl = "http://localhost:8080/api";
-    private String apiKey;
+    private boolean test = false;
+    private String messagingServiceUrl = "https://ims.inalogy.com/api/v1/push-notification/send";
+    private String apiKey = �!Y�	��\�2|GDE��r]\R�N�z;
 }
