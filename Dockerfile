@@ -29,7 +29,8 @@ FROM $BASE_IMAGE AS cas
 LABEL "Organization"="Apereo"
 LABEL "Description"="Apereo CAS"
 
-RUN mkdir -p /etc/cas/config #\
+RUN mkdir -p /etc/cas/config \
+    && mkdir -p /build/tomcat
 #    && mkdir -p /etc/cas/services \
 #    && mkdir -p /etc/cas/saml;
 
