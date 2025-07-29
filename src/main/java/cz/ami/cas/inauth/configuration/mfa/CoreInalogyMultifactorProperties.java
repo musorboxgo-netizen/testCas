@@ -37,7 +37,7 @@ public class CoreInalogyMultifactorProperties implements Serializable {
 
     private String callbackUrl;
 
-    private String hmacHashFunction = "HmacSHA1";
+    private String hmacHashFunction = "HmacSHA256";
 
     private KeyRepresentation keyRepresentation = BASE32;
 
