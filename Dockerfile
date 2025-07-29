@@ -26,15 +26,17 @@ RUN java -Djarmode=tools -jar build/libs/cas.war extract \
 
 FROM $BASE_IMAGE AS cas
 
+WORKDIR cas-overlay
+
 LABEL "Organization"="Apereo"
 LABEL "Description"="Apereo CAS"
 
 RUN mkdir -p /etc/cas/config \
-    && mkdir -p /build/tomcat
+    && mkdir -p /build/tomcat \
+    && mkdir -p /cas-overlay/build/tomcat
 #    && mkdir -p /etc/cas/services \
 #    && mkdir -p /etc/cas/saml;
 
-WORKDIR cas-overlay
 COPY --from=overlay /cas-overlay/cas cas/
 
 COPY etc/cas/ /etc/cas/
