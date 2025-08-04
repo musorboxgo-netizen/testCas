@@ -19,7 +19,6 @@ public class InalogyAuthenticatorAccount extends OneTimeTokenAccount {
     @Serial
     private static final long serialVersionUID = 2441771266526250011L;
 
-    private String deviceId;      // Firebase device ID
     private String deviceType;    // IOS или ANDROID
     private String pushId;        // Push notification token
     private String deviceKeyId;
@@ -44,7 +43,6 @@ public class InalogyAuthenticatorAccount extends OneTimeTokenAccount {
 
         if (acct instanceof InalogyAuthenticatorAccount) {
             InalogyAuthenticatorAccount inalogyAcct = (InalogyAuthenticatorAccount) acct;
-            account.setDeviceId(inalogyAcct.getDeviceId());
             account.setDeviceType(inalogyAcct.getDeviceType());
             account.setPushId(inalogyAcct.getPushId());
             account.setDeviceKeyId(inalogyAcct.getDeviceKeyId());

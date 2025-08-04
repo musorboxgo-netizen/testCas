@@ -11,12 +11,33 @@ import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
+/**
+ * In-memory implementation of the {@link IInalogyPushAuthenticationRepository} interface.
+ * This class stores push authentication requests in memory using a ConcurrentHashMap
+ * and provides thread-safe access using a CasReentrantLock.
+ *
+ * @author Inalogy
+ * @since 1.0.0
+ */
 @Slf4j
 public class InMemoryInalogyPushAuthenticationRepository implements IInalogyPushAuthenticationRepository {
 
+    /**
+     * Lock for thread-safe access to the repository.
+     */
     private final CasReentrantLock lock = new CasReentrantLock();
+
+    /**
+     * Map of pending authentication requests indexed by their key ID.
+     */
     private final Map<String, PendingPushAuthentication> pendingAuthentications = new ConcurrentHashMap<>();
 
+    /**
+     * {@inheritDoc}
+     * <p>
+     * This implementation stores the authentication request in the in-memory map
+     * and logs the operation.
+     */
     @Override
     public void save(PendingPushAuthentication authentication) {
         lock.tryLock(__ -> {
@@ -25,11 +46,22 @@ public class InMemoryInalogyPushAuthenticationRepository implements IInalogyPush
         });
     }
 
+    /**
+     * {@inheritDoc}
+     * <p>
+     * This implementation retrieves the authentication request from the in-memory map.
+     */
     @Override
     public Optional<PendingPushAuthentication> findByKeyId(String keyId) {
         return lock.tryLock(() -> Optional.ofNullable(pendingAuthentications.get(keyId)));
     }
 
+    /**
+     * {@inheritDoc}
+     * <p>
+     * This implementation filters the in-memory map to find all authentication
+     * requests for the specified username.
+     */
     @Override
     public List<PendingPushAuthentication> findByUsername(String username) {
         return lock.tryLock(() -> pendingAuthentications.values().stream()
@@ -37,34 +69,54 @@ public class InMemoryInalogyPushAuthenticationRepository implements IInalogyPush
                 .collect(Collectors.toList()));
     }
 
+    /**
+     * {@inheritDoc}
+     * <p>
+     * This implementation updates the response status of the authentication request
+     * in the in-memory map and logs the operation.
+     */
     @Override
-    public boolean updateResponse(String keyId, boolean approved) {
-        return lock.tryLock(() -> {
-            Optional<PendingPushAuthentication> authOpt = Optional.ofNullable(pendingAuthentications.get(keyId));
+    public void updateResponse(String pushId, boolean approved) {
+        lock.tryLock(() -> {
+            Optional<PendingPushAuthentication> authOpt = Optional.ofNullable(pendingAuthentications.get(pushId));
             if (authOpt.isPresent()) {
                 authOpt.get().setResponse(approved);
-                LOGGER.debug("Updated pending authentication response for keyId: [{}], approved: [{}]",
-                        keyId, approved);
+                authOpt.get().setRespondedAt(System.currentTimeMillis());
+                authOpt.get().setResponded(true);
+                LOGGER.debug("Updated pending authentication response for pushId: [{}], approved: [{}]",
+                        pushId, approved);
                 return true;
             }
             return false;
         });
     }
 
+    /**
+     * {@inheritDoc}
+     * <p>
+     * This implementation removes the authentication request from the in-memory map
+     * and logs the operation.
+     */
     @Override
-    public boolean remove(String keyId) {
+    public boolean remove(String pushId) {
         return lock.tryLock(() -> {
-            PendingPushAuthentication removed = pendingAuthentications.remove(keyId);
+            PendingPushAuthentication removed = pendingAuthentications.remove(pushId);
             if (removed != null) {
-                LOGGER.debug("Removed pending authentication with keyId: [{}]", keyId);
+                LOGGER.debug("Removed pending authentication with pushId: [{}]", pushId);
                 return true;
             }
             return false;
         });
     }
 
+    /**
+     * {@inheritDoc}
+     * <p>
+     * This implementation runs every minute to clean up expired authentication requests
+     * and those that have been responded to more than 3 minutes ago.
+     */
     @Override
-    @Scheduled(fixedRate = 60000) // Запускать каждую минуту
+    @Scheduled(fixedRate = 60000) // Run every minute
     public int cleanupExpired() {
         return lock.tryLock(() -> {
             List<String> expiredKeys = pendingAuthentications.entrySet().stream()

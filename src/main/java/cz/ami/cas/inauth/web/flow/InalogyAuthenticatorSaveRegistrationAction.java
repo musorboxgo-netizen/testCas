@@ -105,9 +105,10 @@ public class InalogyAuthenticatorSaveRegistrationAction extends BaseCasWebflowAc
                 }
                 case TemporaryAccountStorage.STATUS_REGISTERED -> {
                     if (validate == null || !validate) {
-                        LOGGER.trace("Storing account [{}]", account);
+                        LOGGER.debug("Storing account [{}]", account);
                         MultifactorAuthenticationWebflowUtils.putOneTimeTokenAccount(requestContext, repository.save(account));
                     }
+                    temporaryAccountStorage.removeAccount(account.getId());
                     return success();
                 }
             }

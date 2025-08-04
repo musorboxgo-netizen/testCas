@@ -12,6 +12,14 @@ import org.springframework.boot.context.properties.NestedConfigurationProperty;
 
 import java.io.Serial;
 
+/**
+ * Configuration properties for Inalogy Authenticator multifactor authentication.
+ * This class extends the base multifactor authentication provider properties
+ * and adds Inalogy-specific configuration options.
+ *
+ * @author Inalogy
+ * @since 1.0.0
+ */
 @Getter
 @Setter
 @Accessors(chain = true)
@@ -31,15 +39,31 @@ public class InalogyAuthenticatorMultifactorProperties extends BaseMultifactorAu
     @NestedConfigurationProperty
     private CoreInalogyMultifactorProperties core = new CoreInalogyMultifactorProperties();
 
+    /**
+     * Cryptography settings for JWT encryption and signing.
+     * Used for secure token generation and validation.
+     */
     @NestedConfigurationProperty
     private EncryptionJwtSigningJwtCryptographyProperties crypto = new EncryptionJwtSigningJwtCryptographyProperties();
 
+    /**
+     * Scheduled job properties for the cleaner task.
+     * Configures when and how often expired tokens and records are cleaned up.
+     */
     @NestedConfigurationProperty
     private ScheduledJobProperties cleaner = new ScheduledJobProperties();
 
+    /**
+     * Configuration properties for the Inalogy messaging service.
+     * Used for push notifications and other communication with user devices.
+     */
     @NestedConfigurationProperty
     private InalogyMessagingServiceProperties messagingService = new InalogyMessagingServiceProperties();
 
+    /**
+     * Constructor that initializes the properties with default values.
+     * Sets the provider ID, crypto key sizes, and cleaner schedule.
+     */
     public InalogyAuthenticatorMultifactorProperties() {
         setId(DEFAULT_IDENTIFIER);
         crypto.getEncryption().setKeySize(EncryptionJwtCryptoProperties.DEFAULT_STRINGABLE_ENCRYPTION_KEY_SIZE);

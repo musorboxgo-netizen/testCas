@@ -13,7 +13,14 @@ import org.springframework.web.client.RestTemplate;
 
 import java.time.Instant;
 
-@Service
+/**
+ * Service for sending push notifications to user devices.
+ * This service handles the communication with the messaging API to deliver
+ * authentication challenges and notifications to mobile devices.
+ *
+ * @since 1.0.0
+ */
+
 @RequiredArgsConstructor
 @Slf4j
 public class InalogyMessagingService {
@@ -39,7 +46,7 @@ public class InalogyMessagingService {
         try {
             if(properties.isTest()) return true;
 
-            val endpoint = properties.getMessagingServiceUrl() + "/v1/push-notification/send";
+            val endpoint = properties.getUrl();
 
             HttpHeaders headers = new HttpHeaders();
             val apiKey = properties.getApiKey();
@@ -61,6 +68,8 @@ public class InalogyMessagingService {
 
             HttpEntity<String> request = new HttpEntity<>(requestBody, headers);
             ResponseEntity<Void> response = restTemplate.postForEntity(endpoint, request, Void.class);
+
+            LOGGER.info(requestBody);
 
             return response.getStatusCode() == HttpStatus.NO_CONTENT;
         } catch (Exception e) {

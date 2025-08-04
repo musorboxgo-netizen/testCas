@@ -55,7 +55,7 @@ public class InalogyAccountCreateRegistrationAction extends AbstractMultifactorA
         val callbackUrlEncoded = URLEncoder.encode(properties.getCallbackUrl(), StandardCharsets.UTF_8);
 
         val keyUri = String.format("otpauth://totp/%s:%s?secret=%s&digits=6&mode=push&algorithm=SHA256&issuer=%s&callback=%s&period=30",
-                properties.getIssuer(),
+                properties.getLabel(),
                 uid,
                 keyAccount.getSecretKey(),
                 properties.getIssuer(),

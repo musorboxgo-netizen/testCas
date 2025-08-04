@@ -9,6 +9,8 @@ import java.util.List;
 
 /**
  * This class represents the key used by the Inalogy Authenticator.
+ * It contains the secret key, verification code, and scratch codes needed
+ * for multi-factor authentication operations.
  *
  * @author Inalogy
  * @since 1.0.0
@@ -19,56 +21,20 @@ import java.util.List;
 public final class InalogyAuthenticatorKey {
     /**
      * The secret key in Base32 encoding.
+     * This key is used to generate time-based one-time passwords (TOTP).
      */
     private final String key;
 
     /**
      * The verification code at time = 0 (the UNIX epoch).
+     * This is used as a reference point for time-based code generation.
      */
     private final int verificationCode;
 
     /**
      * The list of scratch codes.
+     * These are backup codes that can be used for authentication when
+     * the primary authentication method is unavailable.
      */
     private final List<Integer> scratchCodes;
-
-    /**
-     * Default constructor with predefined values.
-     */
-    public InalogyAuthenticatorKey() {
-        this.key = "MFQWCYLBMFQWCYLBMFQWCYLBMFQWCYLB";
-        this.verificationCode = 123456;
-        this.scratchCodes = List.of(1, 2, 3, 4, 5);
-    }
-
-    /**
-     * This class is a builder to create instances of the {@link InalogyAuthenticatorKey} class.
-     */
-    @Getter
-    @Setter
-    public static class Builder {
-        private String key;
-        private int verificationCode;
-        private List<Integer> scratchCodes = new ArrayList<>();
-
-        /**
-         * Creates an instance of the builder.
-         *
-         * @param key the secret key in Base32 encoding.
-         * @see InalogyAuthenticatorKey#InalogyAuthenticatorKey(String, int, List)
-         */
-        public Builder(String key) {
-            this.key = key;
-        }
-
-        /**
-         * Creates an instance of the {@link InalogyAuthenticatorKey} class.
-         *
-         * @return an instance of the {@link InalogyAuthenticatorKey} class initialized with the properties set in this builder.
-         * @see InalogyAuthenticatorKey#InalogyAuthenticatorKey(String, int, List)
-         */
-        public InalogyAuthenticatorKey build() {
-            return new InalogyAuthenticatorKey(key, verificationCode, scratchCodes);
-        }
-    }
 }

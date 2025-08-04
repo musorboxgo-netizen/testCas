@@ -1,7 +1,5 @@
 package cz.ami.cas.inauth.service;
 
-import com.warrenstrange.googleauth.GoogleAuthenticatorException;
-import cz.ami.cas.inauth.authenticator.model.key.InalogyAuthenticatorKey;
 import cz.ami.cas.inauth.configuration.mfa.CoreInalogyMultifactorProperties;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -10,68 +8,185 @@ import org.apache.commons.codec.binary.Base64;
 
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
-import java.security.InvalidKeyException;
-import java.security.NoSuchAlgorithmException;
+import java.math.BigInteger;
 import java.security.SecureRandom;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.logging.Level;
+import java.util.*;
 
+/**
+ * Service for One-Time Password (OTP) operations.
+ * This service provides functionality for generating, validating, and managing
+ * time-based one-time passwords (TOTP) and scratch codes used in multi-factor
+ * authentication.
+ *
+ * @author Inalogy
+ * @since 1.0.0
+ */
 @RequiredArgsConstructor
 @Slf4j
 public class InalogyOtpService {
+    /**
+     * Configuration properties for the OTP service.
+     */
     final CoreInalogyMultifactorProperties properties;
+
+    /**
+     * Secure random number generator for creating secret keys and scratch codes.
+     */
     final SecureRandom secureRandom = new SecureRandom();
 
+    /**
+     * The length of scratch codes in digits.
+     */
     static final int SCRATCH_CODE_LENGTH = 8;
+
+    /**
+     * The modulus used to ensure scratch codes have the correct number of digits.
+     */
     public static final int SCRATCH_CODE_MODULUS = (int) Math.pow(10, SCRATCH_CODE_LENGTH);
+
+    /**
+     * The number of bytes used to generate each scratch code.
+     */
     static final int BYTES_PER_SCRATCH_CODE = 4;
+
+    /**
+     * Value indicating an invalid scratch code.
+     */
     static final int SCRATCH_CODE_INVALID = -1;
 
+    /**
+     * Calculates the secret key string representation based on the configured key representation.
+     *
+     * @param secretKey The raw secret key bytes
+     * @return The encoded secret key string (BASE32 or BASE64)
+     * @throws IllegalArgumentException If the key representation is unknown
+     */
     String calculateSecretKey(byte[] secretKey)
     {
         return switch (properties.getKeyRepresentation()) {
             case BASE32 -> new Base32().encodeToString(secretKey);
             case BASE64 -> new Base64().encodeToString(secretKey);
-            default -> throw new IllegalArgumentException("Unknown key representation type.");
         };
     }
 
-    boolean checkCode(
-            String secret,
-            long code,
-            long timestamp)
-    {
-        byte[] decodedKey = decodeSecret(secret);
+    /**
+     * Generates a TOTP code for a specific time window.
+     *
+     * @param secretKey The secret key in raw byte form
+     * @return The generated TOTP code as a string
+     */
+    String generateTOTP(byte[] secretKey) {
+        long T = getCurrentInterval();
 
-        // convert unix time into a 30 second "window" as specified by the
-        // TOTP specification. Using Google's default interval of 30 seconds.
-        final long timeWindow = getTimeWindowFromTime(timestamp);
+        StringBuilder steps = new StringBuilder(Long.toHexString(T).toUpperCase());
 
-        final int window = properties.getWindowSize();
-
-        // Calculating the verification code of the given key in each of the
-        // time intervals and returning true if the provided code is equal to
-        // one of them.
-        for (int i = -((window - 1) / 2); i <= window / 2; ++i)
-        {
-            // Calculating the verification code for the current time interval.
-            long hash = calculateCode(decodedKey, timeWindow + i);
-
-            // Checking if the provided code is equal to the calculated one.
-            if (hash == code)
-            {
-                // The verification code is valid.
-                return true;
-            }
+        // Just get a 16 digit string
+        while (steps.length() < 16) {
+            steps.insert(0, "0");
         }
 
-        // The verification code is invalid.
-        return false;
-//        return code == 123456;
+        return generateOTP(secretKey, steps.toString(), properties.getCodeDigits(), properties.getHmacHashFunction());
     }
 
+    /**
+     * This method generates an OTP value for the given set of parameters.
+     *
+     * @param key          the shared secret in raw byte form
+     * @param counter      a value that reflects a counter or time
+     * @param returnDigits number of digits to return
+     * @param crypto       the crypto function to use
+     * @return A numeric String in base 10 that includes return digits
+     */
+    private String generateOTP(byte[] key, String counter, int returnDigits, String crypto) {
+        // Using the counter
+        // First 8 bytes are for the movingFactor
+        // Complaint with base RFC 4226 (HOTP)
+        StringBuilder counterBuilder = new StringBuilder(counter);
+        while (counterBuilder.length() < 16) {
+            counterBuilder.insert(0, "0");
+        }
+        counter = counterBuilder.toString();
+
+        // Get the HEX in a Byte[]
+        byte[] msg = hexStr2Bytes(counter);
+
+        // Get the HMAC hash
+        byte[] hash = hmac_sha(crypto, key, msg);
+
+        // put selected bytes into result int
+        int offset = hash[hash.length - 1] & 0xf;
+
+        int binary = ((hash[offset] & 0x7f) << 24) |
+                ((hash[offset + 1] & 0xff) << 16) |
+                ((hash[offset + 2] & 0xff) << 8) |
+                (hash[offset + 3] & 0xff);
+
+        // Calculate the OTP value
+        int otp = binary % (int) Math.pow(10, returnDigits);
+
+        // Convert to string with leading zeros if necessary
+        StringBuilder result = new StringBuilder(Integer.toString(otp));
+
+        while (result.length() < returnDigits) {
+            result.insert(0, "0");
+        }
+
+        return result.toString();
+    }
+
+    /**
+     * Validates a one-time password code against a secret key.
+     * Checks the code against a time window to account for clock skew.
+     *
+     * @param secret The secret key in encoded form
+     * @param code The OTP code to validate
+     * @return true if the code is valid, false otherwise
+     */
+    boolean checkCode(String secret, long code) {
+        if (!properties.isTestMode()) {
+            byte[] decodedKey = decodeSecret(secret);
+
+            // Convert the code to a string with leading zeros if necessary
+            StringBuilder codeString = new StringBuilder(Long.toString(code));
+            while (codeString.length() < properties.getCodeDigits()) {
+                codeString.insert(0, "0");
+            }
+
+            long currentInterval = getCurrentInterval();
+
+            for (int i = 0; i <= (properties.getWindowSize() * 2); i++) {
+                long delta = clockSkewIndexToDelta(i);
+                long adjustedInterval = currentInterval + delta;
+
+                StringBuilder steps = new StringBuilder(Long.toHexString(adjustedInterval).toUpperCase());
+
+                // Just get a 16 digit string
+                while (steps.length() < 16) {
+                    steps.insert(0, "0");
+                }
+
+                String candidate = generateOTP(decodedKey, steps.toString(), properties.getCodeDigits(), properties.getHmacHashFunction());
+
+                if (candidate.contentEquals(codeString)) {
+                    return true;
+                }
+            }
+
+            return false;
+        } else {
+            return code == 123456;
+        }
+    }
+
+    private long clockSkewIndexToDelta(int idx) {
+        return (idx + 1) / 2 * (1 - (idx % 2) * 2);
+    }
+
+    /**
+     * Generates random bytes for a new secret key.
+     *
+     * @return A byte array containing the random secret key
+     */
     byte[] generateSecretBytes()
     {
         byte[] secretBytes = new byte[properties.getSecretKeySize() / 8];
@@ -79,6 +194,12 @@ public class InalogyOtpService {
         return secretBytes;
     }
 
+    /**
+     * Decodes an encoded secret key string back to its raw byte representation.
+     *
+     * @param secret The encoded secret key string
+     * @return The decoded secret key as a byte array
+     */
     byte[] decodeSecret(String secret)
     {
         // Decoding the secret key to get its raw byte representation.
@@ -94,81 +215,13 @@ public class InalogyOtpService {
         };
     }
 
-    int calculateCode(byte[] key, long tm)
-    {
-        // Allocating an array of bytes to represent the specified instant
-        // of time.
-        byte[] data = new byte[8];
-        long value = tm;
-
-        // Converting the instant of time from the long representation to a
-        // big-endian array of bytes (RFC4226, 5.2. Description).
-        for (int i = 8; i-- > 0; value >>>= 8)
-        {
-            data[i] = (byte) value;
-        }
-
-        // Building the secret key specification for the HmacSHA1 algorithm.
-        SecretKeySpec signKey = new SecretKeySpec(key, properties.getHmacHashFunction());
-
-        try
-        {
-            // Getting an HmacSHA1/HmacSHA256 algorithm implementation from the JCE.
-            Mac mac = Mac.getInstance(properties.getHmacHashFunction());
-
-            // Initializing the MAC algorithm.
-            mac.init(signKey);
-
-            // Processing the instant of time and getting the encrypted data.
-            byte[] hash = mac.doFinal(data);
-
-            // Building the validation code performing dynamic truncation
-            // (RFC4226, 5.3. Generating an HOTP value)
-            int offset = hash[hash.length - 1] & 0xF;
-
-            // We are using a long because Java hasn't got an unsigned integer type
-            // and we need 32 unsigned bits).
-            long truncatedHash = 0;
-
-            for (int i = 0; i < 4; ++i)
-            {
-                truncatedHash <<= 8;
-
-                // Java bytes are signed but we need an unsigned integer:
-                // cleaning off all but the LSB.
-                truncatedHash |= (hash[offset + i] & 0xFF);
-            }
-
-            // Clean bits higher than the 32nd (inclusive) and calculate the
-            // module with the maximum validation code value.
-            truncatedHash &= 0x7FFFFFFF;
-            truncatedHash %= properties.getKeyModulus();
-
-            // Returning the validation code to the caller.
-            return (int) truncatedHash;
-        }
-        catch (NoSuchAlgorithmException | InvalidKeyException ex)
-        {
-            // Logging the exception.
-            LOGGER.error(ex.getMessage(), ex, Level.SEVERE);
-
-            // We're not disclosing internal error details to our clients.
-            throw new GoogleAuthenticatorException("The operation cannot be performed now.");
-        }
-    }
-
-    long getTimeWindowFromTime(long time)
-    {
-        return time / this.properties.getTimeStepSize();
-    }
-
-
-
-    int calculateValidationCode(byte[] secretKey)
-    {
-        return calculateCode(secretKey, 0);
-    }
-
+    /**
+     * Generates a list of scratch codes for an account.
+     * Scratch codes are backup codes that can be used when the primary
+     * authentication method is unavailable.
+     *
+     * @return A list of scratch codes
+     */
     List<Integer> calculateScratchCodes()
     {
         final List<Integer> scratchCodes = new ArrayList<>();
@@ -181,6 +234,12 @@ public class InalogyOtpService {
         return scratchCodes;
     }
 
+    /**
+     * Generates a single valid scratch code.
+     * Continues generating codes until a valid one is found.
+     *
+     * @return A valid scratch code
+     */
     int generateScratchCode()
     {
         while (true)
@@ -197,6 +256,14 @@ public class InalogyOtpService {
         }
     }
 
+    /**
+     * Calculates a scratch code from random bytes.
+     * The code is only valid if it has the correct number of digits.
+     *
+     * @param scratchCodeBuffer The random bytes to use for generating the scratch code
+     * @return The calculated scratch code, or SCRATCH_CODE_INVALID if invalid
+     * @throws IllegalArgumentException If the provided buffer is too small
+     */
     int calculateScratchCode(byte[] scratchCodeBuffer)
     {
         if (scratchCodeBuffer.length < BYTES_PER_SCRATCH_CODE)
@@ -228,8 +295,62 @@ public class InalogyOtpService {
         }
     }
 
+    /**
+     * Converts a hexadecimal string to a byte array.
+     *
+     * @param hex The hexadecimal string
+     * @return The byte array
+     */
+    private byte[] hexStr2Bytes(String hex) {
+        // Adding one byte to get the right conversion
+        // values starting with "0" can be converted
+        byte[] bArray = new BigInteger("10" + hex, 16).toByteArray();
+
+        // Copy all the REAL bytes, not the "first"
+        byte[] ret = new byte[bArray.length - 1];
+        System.arraycopy(bArray, 1, ret, 0, ret.length);
+        return ret;
+    }
+
+    /**
+     * Calculates the HMAC hash of a message using the specified algorithm.
+     *
+     * @param crypto    The crypto algorithm (HmacSHA1, HmacSHA256, HmacSHA512)
+     * @param keyBytes  The key bytes
+     * @param text      The message to hash
+     * @return The HMAC hash
+     */
+    private byte[] hmac_sha(String crypto, byte[] keyBytes, byte[] text) {
+        try {
+            Mac hmac = Mac.getInstance(crypto);
+            SecretKeySpec macKey = new SecretKeySpec(keyBytes, "RAW");
+
+            hmac.init(macKey);
+
+            return hmac.doFinal(text);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    /**
+     * Validates that a scratch code has the correct number of digits.
+     * A valid scratch code must have exactly SCRATCH_CODE_LENGTH digits.
+     *
+     * @param scratchCode The scratch code to validate
+     * @return true if the scratch code is valid, false otherwise
+     */
     boolean validateScratchCode(int scratchCode)
     {
         return (scratchCode >= SCRATCH_CODE_MODULUS / 10);
+    }
+
+
+
+    public long getCurrentInterval() {
+        Calendar currentCalendar = GregorianCalendar.getInstance(TimeZone.getTimeZone("CEST"));
+
+        return (currentCalendar.getTimeInMillis() / 1000) / properties.getTimeStepSize();
+
     }
 }

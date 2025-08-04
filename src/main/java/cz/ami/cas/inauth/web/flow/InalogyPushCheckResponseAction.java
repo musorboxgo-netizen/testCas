@@ -29,7 +29,7 @@ public class InalogyPushCheckResponseAction extends AbstractMultifactorAuthentic
         switch (status) {
             case APPROVED:
                 LOGGER.debug("Push authentication approved for keyId: [{}]", keyId);
-                return success();
+                return new EventFactorySupport().event(this, "submit");
 
             case REJECTED:
                 LOGGER.debug("Push authentication rejected for keyId: [{}]", keyId);

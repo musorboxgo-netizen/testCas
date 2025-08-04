@@ -247,11 +247,10 @@ public class InalogyAuthenticatorWebflowConfiguration {
             @Qualifier("inalogyAuthenticatorInstance")
             final IInalogyAuthenticator inalogyAuthenticator
     ) {
-        val prefix = casProperties.getServer().getPrefix();
         return WebflowActionBeanSupplier.builder()
                 .withApplicationContext(applicationContext)
                 .withProperties(casProperties)
-                .withAction(() -> new InalogyPushInitAction(inalogyAuthenticator, prefix))
+                .withAction(() -> new InalogyInitiatePushAuthenticationAction(inalogyAuthenticator))
                 .withId(CasWebflowConstants.ACTION_ID_INALOGY_PUSH_INIT)
                 .build()
                 .get();

@@ -10,9 +10,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.Map;
 
 /**
  * This is {@link InalogyAuthenticatorController}.
@@ -132,6 +132,13 @@ public class InalogyAuthenticatorController {
 
         // Return success response
         return ResponseEntity.status(HttpStatus.NO_CONTENT).build();
+    }
+
+    @GetMapping("/check")
+    public ResponseEntity<Map<String, String>> checkStatus(@RequestParam String keyId) {
+        var status = inalogyAuthenticator.checkPushAuthenticationStatus(keyId);
+        LOGGER.debug("Received check status request.");
+        return ResponseEntity.ok(Map.of("status", status.name()));
     }
 
     /**

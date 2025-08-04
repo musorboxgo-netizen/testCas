@@ -39,7 +39,8 @@ public class InalogyAuthenticatorControllerConfiguration {
                 val validate = "/inalogy/validate";
                 val terminate = "/inalogy/terminate";
                 val pushIdChange = "/inalogy/push-id-change";
-                return List.of(submit, terminate, validate, pushIdChange);
+                val checkStatus = "/inalogy/check";
+                return List.of(submit, terminate, validate, pushIdChange, checkStatus);
             }
         };
     }

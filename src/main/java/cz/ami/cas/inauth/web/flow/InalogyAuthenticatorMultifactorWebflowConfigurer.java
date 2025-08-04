@@ -63,8 +63,9 @@ public class InalogyAuthenticatorMultifactorWebflowConfigurer extends AbstractCa
                     createEvaluateAction(CasWebflowConstants.ACTION_ID_INALOGY_CHECK_ACCOUNT_REGISTRATION));
             createTransitionForState(acctRegCheckState, CasWebflowConstants.TRANSITION_ID_REGISTER, CasWebflowConstants.STATE_ID_VIEW_REGISTRATION);
             createTransitionForState(acctRegCheckState, CasWebflowConstants.TRANSITION_ID_CONFIRM, "viewConfirmRegistration");
-            createTransitionForState(acctRegCheckState, CasWebflowConstants.TRANSITION_ID_SUCCESS, CasWebflowConstants.STATE_ID_SUCCESS);
+//            createTransitionForState(acctRegCheckState, CasWebflowConstants.TRANSITION_ID_SUCCESS, CasWebflowConstants.STATE_ID_SUCCESS);
             createTransitionForState(acctRegCheckState, CasWebflowConstants.TRANSITION_ID_STOP, CasWebflowConstants.STATE_ID_REGISTRATION_REQUIRED);
+            createTransitionForState(acctRegCheckState, CasWebflowConstants.TRANSITION_ID_SUCCESS, "initMfaWebflow");
 
             createViewState(flow, CasWebflowConstants.STATE_ID_REGISTRATION_REQUIRED, "inauth/casInalogyAuthenticatorRegistrationRequiredView");
 
@@ -80,7 +81,24 @@ public class InalogyAuthenticatorMultifactorWebflowConfigurer extends AbstractCa
             regViewState.getEntryActionList().addAll(setPrincipalAction, createEvaluateAction(CasWebflowConstants.ACTION_ID_INALOGY_ACCOUNT_CREATE_REGISTRATION));
             createTransitionForState(regViewState, CasWebflowConstants.TRANSITION_ID_SUBMIT, CasWebflowConstants.STATE_ID_INALOGY_SAVE_REGISTRATION);
 
-            createViewState(flow, "viewRegistrationError", "inauth/casInalogyAuthenticatorRegistrationErrorView");
+            // 1. State to initialize MFA webflow by sending request through messaging service
+            val initMfaWebflowState = createActionState(flow, "initMfaWebflow",
+                    createEvaluateAction(CasWebflowConstants.ACTION_ID_INALOGY_PUSH_INIT));
+            createTransitionForState(initMfaWebflowState, CasWebflowConstants.TRANSITION_ID_SUCCESS, CasWebflowConstants.STATE_ID_VIEW_LOGIN_FORM);
+            createTransitionForState(initMfaWebflowState, "deviceNotRegistered", "viewLoginError");
+            createTransitionForState(initMfaWebflowState, CasWebflowConstants.TRANSITION_ID_ERROR, "viewLoginError");
+
+            // 2. State to check push authentication status
+            val inalogyLoginFormState = createViewState(flow, CasWebflowConstants.STATE_ID_VIEW_LOGIN_FORM,
+                    "inauth/casInalogyAuthenticatorLoginView");
+            inalogyLoginFormState.getEntryActionList().add(createEvaluateAction(CasWebflowConstants.ACTION_ID_INALOGY_CHECK_RESPONSE));
+            createTransitionForState(inalogyLoginFormState, CasWebflowConstants.TRANSITION_ID_SUBMIT, CasWebflowConstants.STATE_ID_SUCCESS);
+            createTransitionForState(inalogyLoginFormState, "waiting", CasWebflowConstants.STATE_ID_VIEW_LOGIN_FORM);
+            createTransitionForState(inalogyLoginFormState, "rejected", "viewLoginError");
+            createTransitionForState(inalogyLoginFormState, "timeout", "viewLoginError");
+
+            // 6. Error view state
+            createViewState(flow, "viewLoginError", "inauth/casInalogyAuthenticatorLoginErrorView");
         });
 
         registerMultifactorProviderAuthenticationWebflow(getLoginFlow(), providerId, providerId);
