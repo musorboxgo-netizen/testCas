@@ -96,10 +96,10 @@ public interface IInalogyAuthenticator {
     /**
      * Retrieves a pending push authentication request.
      *
-     * @param keyId The key ID of the authentication request
+     * @param pushId The key ID of the authentication request
      * @return The pending push authentication request, or null if not found
      */
-    PendingPushAuthentication getPendingPushAuthentication(String keyId);
+    PendingPushAuthentication getPendingPushAuthentication(String pushId);
 
     /**
      * Validates a challenge response based on the challenge type.

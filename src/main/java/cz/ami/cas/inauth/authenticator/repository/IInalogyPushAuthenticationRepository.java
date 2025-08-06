@@ -28,12 +28,12 @@ public interface IInalogyPushAuthenticationRepository {
     void save(PendingPushAuthentication authentication);
 
     /**
-     * Finds a push authentication request by its key ID.
+     * Finds a push authentication request by its push ID.
      *
-     * @param keyId The key ID to search for
+     * @param pushId The push ID to search for
      * @return An Optional containing the authentication request if found, or empty if not found
      */
-    Optional<PendingPushAuthentication> findByKeyId(String keyId);
+    Optional<PendingPushAuthentication> findByPushId(String pushId);
 
     /**
      * Finds all push authentication requests for a specific username.
@@ -46,18 +46,18 @@ public interface IInalogyPushAuthenticationRepository {
     /**
      * Updates the response status of a push authentication request.
      *
-     * @param keyId The key ID of the authentication request to update
+     * @param pushId The push ID of the authentication request to update
      * @param approved True if the request was approved, false if rejected
      */
-    void updateResponse(String keyId, boolean approved);
+    void updateResponse(String pushId, boolean approved);
 
     /**
      * Removes a push authentication request from the repository.
      *
-     * @param keyId The key ID of the authentication request to remove
+     * @param pushId The push ID of the authentication request to remove
      * @return True if the request was found and removed, false otherwise
      */
-    boolean remove(String keyId);
+    boolean remove(String pushId);
 
     /**
      * Cleans up expired authentication requests from the repository.

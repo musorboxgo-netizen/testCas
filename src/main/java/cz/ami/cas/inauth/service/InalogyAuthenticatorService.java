@@ -8,6 +8,7 @@ import cz.ami.cas.inauth.authenticator.repository.IInalogyPushAuthenticationRepo
 import cz.ami.cas.inauth.authenticator.repository.TemporaryAccountStorage;
 import cz.ami.cas.inauth.configuration.mfa.CoreInalogyMultifactorProperties;
 import cz.ami.cas.inauth.credential.InalogyAuthenticatorAccount;
+import cz.ami.cas.inauth.credential.repository.BaseInalogyAuthenticatorTokenCredentialRepository;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
@@ -41,7 +42,7 @@ public class InalogyAuthenticatorService implements IInalogyAuthenticator {
     /**
      * Repository for storing and retrieving token credentials.
      */
-    private final OneTimeTokenCredentialRepository tokenCredentialRepository;
+    private final BaseInalogyAuthenticatorTokenCredentialRepository tokenCredentialRepository;
 
     /**
      * Repository for managing push authentication requests.
@@ -73,7 +74,7 @@ public class InalogyAuthenticatorService implements IInalogyAuthenticator {
      * @param temporaryAccountStorage Storage for temporary accounts during registration
      */
     public InalogyAuthenticatorService(final CoreInalogyMultifactorProperties properties,
-                                       final OneTimeTokenCredentialRepository tokenCredentialRepository,
+                                       final BaseInalogyAuthenticatorTokenCredentialRepository tokenCredentialRepository,
                                        final IInalogyPushAuthenticationRepository pushAuthenticationRepository,
                                        final InalogyMessagingService messagingService,
                                        final TemporaryAccountStorage temporaryAccountStorage
@@ -200,8 +201,7 @@ public class InalogyAuthenticatorService implements IInalogyAuthenticator {
 
             val pushAccount = pushAccountOpt.get();
 
-            // Generate a unique keyId
-            String keyId = UUID.randomUUID().toString();
+            String keyId = pushAccount.getDeviceKeyId();
 
             // Choose the challenge type and generate data
             String challengeType = properties.getChallengeType();
@@ -236,7 +236,7 @@ public class InalogyAuthenticatorService implements IInalogyAuthenticator {
 
             // Create a record of the pending authentication
             val pendingAuth = new PendingPushAuthentication(
-                    keyId, username, challengeType, dataForChallenge, correctAnswer, 300
+                    pushAccount.getPushId(), username, challengeType, dataForChallenge, correctAnswer, 300
             );
 
             if (!challengeType.equals("CHALLENGE_CHOOSE")) {
@@ -245,7 +245,7 @@ public class InalogyAuthenticatorService implements IInalogyAuthenticator {
 
             // Send push notification
             boolean sent = messagingService.sendPushNotification(
-                    pushAccount.getDeviceKeyId(),
+                    pushAccount.getPushId(),
                     pushAccount.getDeviceType(),
                     challengeType,
                     dataForChallenge,
@@ -258,10 +258,10 @@ public class InalogyAuthenticatorService implements IInalogyAuthenticator {
                 return null;
             }
 
-            LOGGER.debug("Initiated push authentication for user: [{}], keyId: [{}]", username, keyId);
+            LOGGER.debug("Initiated push authentication for user: [{}], pushId: [{}]", username, pushAccount.getPushId());
             // Save the record
             pushAuthenticationRepository.save(pendingAuth);
-            return keyId;
+            return pushAccount.getPushId();
         } catch (Exception e) {
             LOGGER.error("Error initiating push authentication for user: [{}]", username, e);
             return null;
@@ -274,33 +274,33 @@ public class InalogyAuthenticatorService implements IInalogyAuthenticator {
      * Checks the status of a push authentication request.
      */
     @Override
-    public PushAuthenticationStatus checkPushAuthenticationStatus(String keyId) {
-        Optional<PendingPushAuthentication> authOpt = pushAuthenticationRepository.findByKeyId(keyId);
+    public PushAuthenticationStatus checkPushAuthenticationStatus(String pushId) {
+        Optional<PendingPushAuthentication> authOpt = pushAuthenticationRepository.findByPushId(pushId);
 
         if (authOpt.isEmpty()) {
-            LOGGER.debug("No pending authentication found for keyId: [{}]", keyId);
+            LOGGER.debug("No pending authentication found for pushId: [{}]", pushId);
             return PushAuthenticationStatus.NOT_FOUND;
         }
 
         PendingPushAuthentication auth = authOpt.get();
 
         if (auth.isExpired()) {
-            LOGGER.debug("Authentication request expired for keyId: [{}]", keyId);
-            pushAuthenticationRepository.remove(keyId);
+            LOGGER.debug("Authentication request expired for pushId: [{}]", pushId);
+            pushAuthenticationRepository.remove(pushId);
             return PushAuthenticationStatus.EXPIRED;
         }
 
         if (auth.isResponded()) {
             if (auth.isApproved()) {
-                LOGGER.debug("Authentication approved for keyId: [{}]", keyId);
+                LOGGER.debug("Authentication approved for pushId: [{}]", pushId);
                 return PushAuthenticationStatus.APPROVED;
             } else {
-                LOGGER.debug("Authentication rejected for keyId: [{}]", keyId);
+                LOGGER.debug("Authentication rejected for pushId: [{}]", pushId);
                 return PushAuthenticationStatus.REJECTED;
             }
         }
 
-        LOGGER.debug("Authentication pending for keyId: [{}]", keyId);
+        LOGGER.debug("Authentication pending for pushId: [{}]", pushId);
         return PushAuthenticationStatus.PENDING;
     }
 
@@ -332,13 +332,12 @@ public class InalogyAuthenticatorService implements IInalogyAuthenticator {
     @Override
     public ValidationResult validatePushAuthentication(String pushId, String otp, String challengeResponse) {
         // Find account by pushId
-        Optional<InalogyAuthenticatorAccount> accountOpt = findAccountByPushId(pushId);
-        if (accountOpt.isEmpty()) {
+        val account = tokenCredentialRepository.getByPushId(pushId);
+        if (account == null) {
             return ValidationResult.error(HttpStatus.BAD_REQUEST, "device not found");
         }
 
         // Check OTP
-        InalogyAuthenticatorAccount account = accountOpt.get();
         if (!validateOtp(account, Integer.parseInt(otp))) {
             return ValidationResult.error(HttpStatus.FORBIDDEN, "invalid OTP");
         }
@@ -363,7 +362,7 @@ public class InalogyAuthenticatorService implements IInalogyAuthenticator {
         }
 
         // Update the authentication status
-        pushAuthenticationRepository.updateResponse(pendingAuth.getKeyId(), true);
+        pushAuthenticationRepository.updateResponse(pendingAuth.getPushId(), true);
 
         return ValidationResult.success();
     }
@@ -374,8 +373,8 @@ public class InalogyAuthenticatorService implements IInalogyAuthenticator {
      * Retrieves a pending push authentication request by its key ID.
      */
     @Override
-    public PendingPushAuthentication getPendingPushAuthentication(String keyId) {
-        return pushAuthenticationRepository.findByKeyId(keyId).orElse(null);
+    public PendingPushAuthentication getPendingPushAuthentication(String pushId) {
+        return pushAuthenticationRepository.findByPushId(pushId).orElse(null);
     }
 
     /**
@@ -386,13 +385,12 @@ public class InalogyAuthenticatorService implements IInalogyAuthenticator {
     @Override
     public ValidationResult terminatePushAuthentication(String pushId, String otp) {
         // Find account by pushId
-        Optional<InalogyAuthenticatorAccount> accountOpt = findAccountByPushId(pushId);
-        if (accountOpt.isEmpty()) {
+        val account = tokenCredentialRepository.getByPushId(pushId);
+        if (account == null) {
             return ValidationResult.error(HttpStatus.BAD_REQUEST, "device not found");
         }
 
         // Check OTP
-        InalogyAuthenticatorAccount account = accountOpt.get();
         if (!validateOtp(account, Integer.parseInt(otp))) {
             return ValidationResult.error(HttpStatus.FORBIDDEN, "invalid OTP");
         }
@@ -405,7 +403,7 @@ public class InalogyAuthenticatorService implements IInalogyAuthenticator {
 
         // Reject all active authentications
         for (PendingPushAuthentication auth : activeAuths) {
-            pushAuthenticationRepository.updateResponse(auth.getKeyId(), false);
+            pushAuthenticationRepository.updateResponse(auth.getPushId(), false);
         }
 
         return ValidationResult.success();
@@ -420,23 +418,18 @@ public class InalogyAuthenticatorService implements IInalogyAuthenticator {
     public ValidationResult updatePushId(String deviceKey, String newPushId, String otp) {
         try {
             // Find device by deviceKey
-            Optional<OneTimeTokenAccount> accountOpt = tokenCredentialRepository.load().stream()
-                    .filter(acc -> acc instanceof InalogyAuthenticatorAccount)
-                    .map(acc -> (InalogyAuthenticatorAccount) acc)
-                    .filter(acc -> deviceKey.equals(acc.getDeviceKeyId()))
-                    .map(acc -> (OneTimeTokenAccount) acc)
-                    .findFirst();
+            val account = (InalogyAuthenticatorAccount) tokenCredentialRepository.getByDeviceKeyId(deviceKey);
 
-            if (accountOpt.isEmpty()) {
+            if (account == null) {
                 return ValidationResult.error(HttpStatus.BAD_REQUEST, "device not found");
             }
-
-            OneTimeTokenAccount account = accountOpt.get();
 
             // Check OTP
             if (!validateOtp(account, Integer.parseInt(otp))) {
                 return ValidationResult.error(HttpStatus.FORBIDDEN, "invalid OTP");
             }
+
+            val currentPushId = account.getPushId();
 
             // Update pushId
             InalogyAuthenticatorAccount inalogyAccount = InalogyAuthenticatorAccount.from(account);

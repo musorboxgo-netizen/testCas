@@ -4,14 +4,16 @@ import cz.ami.cas.inauth.configuration.mfa.InalogyMessagingServiceProperties;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import lombok.val;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
+import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.time.Instant;
+import java.util.List;
 
 /**
  * Service for sending push notifications to user devices.
@@ -25,7 +27,7 @@ import java.time.Instant;
 @Slf4j
 public class InalogyMessagingService {
 
-    private final RestTemplate restTemplate = new RestTemplate();
+    HttpClient httpClient = HttpClient.newHttpClient();
 
     private final InalogyMessagingServiceProperties properties;
 
@@ -51,7 +53,7 @@ public class InalogyMessagingService {
             HttpHeaders headers = new HttpHeaders();
             val apiKey = properties.getApiKey();
             headers.set("X-API-KEY", apiKey);
-            headers.set("Content-Type", "application/json");
+            headers.setContentType(MediaType.APPLICATION_JSON);
 
             // Create serialized data
             long validUntil = Instant.now().plusSeconds(300).getEpochSecond(); // 5 minutes validity
@@ -66,12 +68,17 @@ public class InalogyMessagingService {
                     deviceId, deviceType, serializedData.replace("\"", "\\\"")
             );
 
-            HttpEntity<String> request = new HttpEntity<>(requestBody, headers);
-            ResponseEntity<Void> response = restTemplate.postForEntity(endpoint, request, Void.class);
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(endpoint))
+                    .header("X-API-KEY", apiKey)
+                    .header("Content-Type", "application/json")
+                    .POST(HttpRequest.BodyPublishers.ofString(requestBody))
+                    .build();
 
-            LOGGER.info(requestBody);
+            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
 
-            return response.getStatusCode() == HttpStatus.NO_CONTENT;
+
+            return response.statusCode() == 204;
         } catch (Exception e) {
             LOGGER.error("Failed to send push notification", e);
             return false;

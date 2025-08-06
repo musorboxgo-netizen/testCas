@@ -8,6 +8,7 @@ import org.apereo.cas.authentication.OneTimeTokenAccount;
 import org.apereo.cas.otp.repository.credentials.BaseOneTimeTokenCredentialRepository;
 import org.apereo.cas.util.crypto.CipherExecutor;
 
+import java.util.Optional;
 import java.util.UUID;
 import java.util.ArrayList;
 
@@ -29,6 +30,24 @@ public abstract class BaseInalogyAuthenticatorTokenCredentialRepository extends 
             final IInalogyAuthenticator inalogyAuthenticator) {
         super(tokenCredentialCipher, scratchCodesCipher);
         this.inalogyAuthenticator = inalogyAuthenticator;
+    }
+
+    public OneTimeTokenAccount getByPushId(final String pushId) {
+        val account = (load().stream()
+                .filter(acc -> acc instanceof InalogyAuthenticatorAccount)
+                .map(acc -> (InalogyAuthenticatorAccount) acc)
+                .filter(acc -> pushId.equals(acc.getPushId()))
+                .findFirst());
+        return account.map(this::decode).orElse(null);
+    }
+
+    public OneTimeTokenAccount getByDeviceKeyId(final String keyId) {
+        val account = (load().stream()
+                .filter(acc -> acc instanceof InalogyAuthenticatorAccount)
+                .map(acc -> (InalogyAuthenticatorAccount) acc)
+                .filter(acc -> keyId.equals(acc.getDeviceKeyId()))
+                .findFirst());
+        return account.map(this::decode).orElse(null);
     }
 
     @Override

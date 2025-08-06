@@ -41,8 +41,8 @@ public class InMemoryInalogyPushAuthenticationRepository implements IInalogyPush
     @Override
     public void save(PendingPushAuthentication authentication) {
         lock.tryLock(__ -> {
-            pendingAuthentications.put(authentication.getKeyId(), authentication);
-            LOGGER.debug("Saved pending authentication with keyId: [{}]", authentication.getKeyId());
+            pendingAuthentications.put(authentication.getPushId(), authentication);
+            LOGGER.debug("Saved pending authentication with pushId: [{}]", authentication.getPushId());
         });
     }
 
@@ -52,8 +52,8 @@ public class InMemoryInalogyPushAuthenticationRepository implements IInalogyPush
      * This implementation retrieves the authentication request from the in-memory map.
      */
     @Override
-    public Optional<PendingPushAuthentication> findByKeyId(String keyId) {
-        return lock.tryLock(() -> Optional.ofNullable(pendingAuthentications.get(keyId)));
+    public Optional<PendingPushAuthentication> findByPushId(String pushId) {
+        return lock.tryLock(() -> Optional.ofNullable(pendingAuthentications.get(pushId)));
     }
 
     /**

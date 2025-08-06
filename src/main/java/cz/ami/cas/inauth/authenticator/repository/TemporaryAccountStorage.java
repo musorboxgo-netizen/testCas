@@ -20,17 +20,17 @@ public class TemporaryAccountStorage {
     /**
      * Map of accounts indexed by their ID.
      */
-    private static final Map<Long, OneTimeTokenAccount> ACCOUNTS_BY_ID = new ConcurrentHashMap<>();
+    private /*static*/ final Map<Long, OneTimeTokenAccount> ACCOUNTS_BY_ID = new ConcurrentHashMap<>();
 
     /**
      * Map of account IDs indexed by their secret key.
      */
-    private static final Map<String, Long> SECRET_TO_ACCOUNT_ID_MAP = new ConcurrentHashMap<>();
+    private /*static*/ final Map<String, Long> SECRET_TO_ACCOUNT_ID_MAP = new ConcurrentHashMap<>();
 
     /**
      * Map of registration statuses indexed by account ID.
      */
-    private static final Map<Long, String> REGISTRATION_STATUS = new ConcurrentHashMap<>();
+    private /*static*/ final Map<Long, String> REGISTRATION_STATUS = new ConcurrentHashMap<>();
 
     // Status constants
     /**

@@ -17,7 +17,7 @@ public class PendingPushAuthentication {
     /**
      * Unique identifier for the authentication key.
      */
-    private final String keyId;
+    private final String pushId;
 
     /**
      * Username of the user being authenticated.
@@ -67,17 +67,17 @@ public class PendingPushAuthentication {
     /**
      * Creates a new pending push authentication request with the specified parameters.
      *
-     * @param keyId The unique identifier for the authentication key
+     * @param pushId The unique identifier for the authentication key
      * @param username The username of the user being authenticated
      * @param challengeType The type of challenge being used
      * @param dataForChallenge The data needed for the challenge
      * @param correctChallengeResponse The expected correct response
      * @param validitySeconds How long the request is valid in seconds
      */
-    public PendingPushAuthentication(String keyId, String username,
+    public PendingPushAuthentication(String pushId, String username,
                                      String challengeType, String dataForChallenge,
                                      String correctChallengeResponse, long validitySeconds) {
-        this.keyId = keyId;
+        this.pushId = pushId;
         this.username = username;
         this.challengeType = challengeType;
         this.dataForChallenge = dataForChallenge;

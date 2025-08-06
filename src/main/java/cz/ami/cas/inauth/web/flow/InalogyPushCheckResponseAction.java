@@ -17,30 +17,30 @@ public class InalogyPushCheckResponseAction extends AbstractMultifactorAuthentic
 
     @Override
     protected Event doExecuteInternal(final RequestContext requestContext) {
-        val keyId = requestContext.getFlowScope().getString("pushAuthKeyId");
-        if (keyId == null) {
+        val pushId = requestContext.getFlowScope().getString("pushAutnPushId");
+        if (pushId == null) {
             LOGGER.error("No pushAuthKeyId found in flow scope");
             return error();
         }
 
         // Проверяем статус аутентификации
-        val status = inalogyAuthenticator.checkPushAuthenticationStatus(keyId);
+        val status = inalogyAuthenticator.checkPushAuthenticationStatus(pushId);
 
         switch (status) {
             case APPROVED:
-                LOGGER.debug("Push authentication approved for keyId: [{}]", keyId);
+                LOGGER.debug("Push authentication approved for pushId: [{}]", pushId);
                 return new EventFactorySupport().event(this, "submit");
 
             case REJECTED:
-                LOGGER.debug("Push authentication rejected for keyId: [{}]", keyId);
+                LOGGER.debug("Push authentication rejected for pushId: [{}]", pushId);
                 return new EventFactorySupport().event(this, "rejected");
 
             case EXPIRED:
-                LOGGER.debug("Push authentication expired for keyId: [{}]", keyId);
+                LOGGER.debug("Push authentication expired for pushId: [{}]", pushId);
                 return new EventFactorySupport().event(this, "timeout");
 
             case NOT_FOUND:
-                LOGGER.debug("Push authentication not found for keyId: [{}]", keyId);
+                LOGGER.debug("Push authentication not found for pushId: [{}]", pushId);
                 return new EventFactorySupport().event(this, "timeout");
 
             case PENDING:
@@ -52,11 +52,11 @@ public class InalogyPushCheckResponseAction extends AbstractMultifactorAuthentic
                 val waitTime = currentTime - waitStartTime;
 
                 if (waitTime > 60000) { // 1 минута тайм-аут UI
-                    LOGGER.debug("Push authentication UI timeout for keyId: [{}]", keyId);
+                    LOGGER.debug("Push authentication UI timeout for pushId: [{}]", pushId);
                     return new EventFactorySupport().event(this, "timeout");
                 }
 
-                LOGGER.debug("Push authentication still pending for keyId: [{}]", keyId);
+                LOGGER.debug("Push authentication still pending for pushId: [{}]", pushId);
                 return new EventFactorySupport().event(this, "waiting");
         }
     }

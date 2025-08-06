@@ -44,8 +44,7 @@
         <form method="post" id="push-approve-form" th:action="@{/login}">
             <input type="hidden" name="_eventId" value="submit" />
             <input type="hidden" name="execution" th:value="${flowExecutionKey}" />
-            <!-- Если надо, прокидывай сюда pushAuthKeyId -->
-            <input type="hidden" name="pushAuthKeyId" th:value="${pushAuthKeyId}" />
+            <input type="hidden" name="pushAuthPushId" th:value="${pushAuthPushId}" />
         </form>
 
         <span th:if="${accounts}">
@@ -76,28 +75,6 @@
 
     </div>
 </main>
-
-<!--<script th:if="${challengeType != null}" th:inline="javascript">-->
-<!--    // Периодически опрашиваем сервер на статус push-аутентификации-->
-<!--    function pollPushStatus() {-->
-<!--        fetch('/cas/inalogy/check?keyId=' + [[${pushAuthKeyId}]], {cache: 'no-store'})-->
-<!--            .then(r => r.json())-->
-<!--            .then(data => {-->
-<!--                if (data.status === 'APPROVED') {-->
-<!--                    document.getElementById('push-approve-form').submit();-->
-<!--                } else if (data.status === 'REJECTED') {-->
-<!--                    window.location.href = '/cas/login?pushFailed=true';-->
-<!--                } else if (data.status === 'EXPIRED') {-->
-<!--                    window.location.href = '/cas/login?pushTimeout=true';-->
-<!--                } else {-->
-<!--                    setTimeout(pollPushStatus, 3000);-->
-<!--                }-->
-<!--            })-->
-<!--            .catch(() => setTimeout(pollPushStatus, 3000));-->
-<!--    }-->
-<!--    pollPushStatus();-->
-<!--</script>-->
-
 
 </body>
 </html>

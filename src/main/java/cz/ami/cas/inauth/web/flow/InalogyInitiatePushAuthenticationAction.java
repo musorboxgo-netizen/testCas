@@ -29,22 +29,22 @@ public class InalogyInitiatePushAuthenticationAction extends AbstractMultifactor
         val username = principal.getId();
 
         // Инициируем push-аутентификацию
-        String keyId = inalogyAuthenticatorService.initiatePushAuthentication(username);
+        String pushId = inalogyAuthenticatorService.initiatePushAuthentication(username);
 
-        if (keyId == null) {
+        if (pushId == null) {
             LOGGER.warn("Failed to initiate push authentication for user: [{}]", username);
             return new EventFactorySupport().event(this, "deviceNotRegistered");
         }
 
-        PendingPushAuthentication authn = inalogyAuthenticatorService.getPendingPushAuthentication(keyId);
+        PendingPushAuthentication authn = inalogyAuthenticatorService.getPendingPushAuthentication(pushId);
 
-        // Сохраняем keyId в flow scope для последующей проверки
-        requestContext.getFlowScope().put("pushAuthKeyId", keyId);
+        // Сохраняем pushId в flow scope для последующей проверки
+        requestContext.getFlowScope().put("pushAuthPushId", pushId);
         requestContext.getFlowScope().put("pushAuthWaitStartTime", System.currentTimeMillis());
         requestContext.getFlowScope().put("challengeType", authn.getChallengeType());
         requestContext.getFlowScope().put("challengeData", authn.getDataForChallenge());
 
-        LOGGER.debug("Push authentication initiated for user: [{}], keyId: [{}]", username, keyId);
+        LOGGER.debug("Push authentication initiated for user: [{}], pushId: [{}]", username, pushId);
         return success();
     }
 }

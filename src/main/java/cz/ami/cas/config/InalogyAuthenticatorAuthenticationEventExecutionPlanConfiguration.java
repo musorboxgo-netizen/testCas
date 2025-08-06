@@ -124,7 +124,7 @@ public class InalogyAuthenticatorAuthenticationEventExecutionPlanConfiguration {
         public IInalogyAuthenticator inalogyAuthenticatorInstance(
                 final CasConfigurationProperties casProperties,
                 @Qualifier(BaseInalogyAuthenticatorTokenCredentialRepository.BEAN_NAME)
-                final OneTimeTokenCredentialRepository credentialRepository,
+                final BaseInalogyAuthenticatorTokenCredentialRepository credentialRepository,
                 @Qualifier(IInalogyPushAuthenticationRepository.BEAN_NAME)
                 final IInalogyPushAuthenticationRepository inalogyPushAuthenticationRepository,
                 @Qualifier("inalogyMessagingService")
@@ -298,7 +298,7 @@ public class InalogyAuthenticatorAuthenticationEventExecutionPlanConfiguration {
         @ConditionalOnMissingBean(name = BaseInalogyAuthenticatorTokenCredentialRepository.BEAN_NAME)
         @Bean
         @RefreshScope(proxyMode = ScopedProxyMode.DEFAULT)
-        public OneTimeTokenCredentialRepository inalogyAuthenticatorAccountRegistry(
+        public BaseInalogyAuthenticatorTokenCredentialRepository inalogyAuthenticatorAccountRegistry(
                 @Lazy @Qualifier("inalogyAuthenticatorInstance")
                 final IInalogyAuthenticator inalogyAuthenticatorInstance,
                 @Qualifier("inalogyAuthenticatorAccountCipherExecutor")
