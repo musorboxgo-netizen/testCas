@@ -113,6 +113,8 @@ public class CoreInalogyMultifactorProperties implements Serializable {
 
     private boolean testMode = false;
 
+    private int timeoutMs = 40000;
+
     @NestedConfigurationProperty
     private InalogyAuthenticatorMultifactorScratchCodeProperties scratchCodes =
             new InalogyAuthenticatorMultifactorScratchCodeProperties();

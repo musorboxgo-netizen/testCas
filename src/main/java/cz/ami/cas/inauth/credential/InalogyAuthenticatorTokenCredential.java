@@ -19,8 +19,17 @@ public class InalogyAuthenticatorTokenCredential extends OneTimeTokenCredential 
 
     private Long accountId;
 
+    private String userResponse;
+
     public InalogyAuthenticatorTokenCredential(final String token, final Long accountId) {
         super(token);
         setAccountId(accountId);
+        setUserResponse(null);
+    }
+
+    public InalogyAuthenticatorTokenCredential(final String token, final Long accountId, final String userResponse) {
+        super(token);
+        setAccountId(accountId);
+        setUserResponse(userResponse);
     }
 }

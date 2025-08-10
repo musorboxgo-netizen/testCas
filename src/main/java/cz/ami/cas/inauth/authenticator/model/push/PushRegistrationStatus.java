@@ -6,7 +6,7 @@ package cz.ami.cas.inauth.authenticator.model.push;
  * @author Inalogy
  * @since 1.0.0
  */
-public enum PushAuthenticationStatus {
+public enum PushRegistrationStatus {
     /**
      * The authentication mfa is pending and waiting for user response.
      */
@@ -15,20 +15,12 @@ public enum PushAuthenticationStatus {
     /**
      * The authentication mfa has been approved by the user.
      */
-    APPROVED,
+    REGISTERED,
 
-    /**
-     * The authentication mfa has been rejected by the user.
-     */
     REJECTED,
 
     /**
      * The authentication mfa has expired due to timeout.
      */
-    EXPIRED,
-
-    /**
-     * The authentication mfa could not be found in the system.
-     */
-    NOT_FOUND
+    EXPIRED
 }

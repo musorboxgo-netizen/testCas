@@ -2,6 +2,8 @@ package cz.ami.cas.inauth.web.flow;
 
 import cz.ami.cas.inauth.authenticator.repository.TemporaryAccountStorage;
 import cz.ami.cas.inauth.configuration.mfa.CoreInalogyMultifactorProperties;
+import cz.ami.cas.inauth.hazelcast.registration.InalogyRegistrationRequest;
+import cz.ami.cas.inauth.hazelcast.registration.RegistrationRequestMap;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import lombok.val;
@@ -39,7 +41,7 @@ public class InalogyAccountCreateRegistrationAction extends AbstractMultifactorA
 
     private final OneTimeTokenCredentialRepository repository;
 
-    private final TemporaryAccountStorage temporaryAccountStorage;
+    private final RegistrationRequestMap registrationRequestMap;
 
     private final CoreInalogyMultifactorProperties properties;
 
@@ -49,7 +51,8 @@ public class InalogyAccountCreateRegistrationAction extends AbstractMultifactorA
         val uid = principal.getId();
 
         val keyAccount = repository.create(uid);
-        temporaryAccountStorage.storeAccount(keyAccount);
+        val registrationRequest = InalogyRegistrationRequest.of(keyAccount, properties.getTimeoutMs());
+        registrationRequestMap.putRequest(registrationRequest);
 
 
         val callbackUrlEncoded = URLEncoder.encode(properties.getCallbackUrl(), StandardCharsets.UTF_8);
@@ -66,6 +69,7 @@ public class InalogyAccountCreateRegistrationAction extends AbstractMultifactorA
 
         val flowScope = requestContext.getFlowScope();
         flowScope.put(FLOW_SCOPE_ATTR_ACCOUNT, keyAccount);
+        flowScope.put("regRequestId", registrationRequest.getRequestId());
         flowScope.put(FLOW_SCOPE_ATTR_QR_IMAGE_BASE64, qrCodeBase64);
 
         LOGGER.debug("Inalogy registration key URI: [{}]", keyUri);

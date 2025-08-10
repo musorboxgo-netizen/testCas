@@ -1,24 +1,32 @@
 package cz.ami.cas.inauth.service;
 
+import cz.ami.cas.inauth.authenticator.model.push.PushRegistrationStatus;
 import cz.ami.cas.inauth.authenticator.model.push.ValidationResult;
 import cz.ami.cas.inauth.authenticator.model.key.InalogyAuthenticatorKey;
 import cz.ami.cas.inauth.authenticator.model.push.PendingPushAuthentication;
 import cz.ami.cas.inauth.authenticator.model.push.PushAuthenticationStatus;
-import cz.ami.cas.inauth.authenticator.repository.IInalogyPushAuthenticationRepository;
-import cz.ami.cas.inauth.authenticator.repository.TemporaryAccountStorage;
 import cz.ami.cas.inauth.configuration.mfa.CoreInalogyMultifactorProperties;
 import cz.ami.cas.inauth.credential.InalogyAuthenticatorAccount;
 import cz.ami.cas.inauth.credential.repository.BaseInalogyAuthenticatorTokenCredentialRepository;
+import cz.ami.cas.inauth.hazelcast.mfa.InalogyMfaRequest;
+import cz.ami.cas.inauth.hazelcast.mfa.InalogyMfaRequestHazelcastMap;
+import cz.ami.cas.inauth.hazelcast.mfa.MfaRequestMap;
+import cz.ami.cas.inauth.hazelcast.registration.InalogyRegRequestHazelcastMap;
+import cz.ami.cas.inauth.hazelcast.registration.RegistrationRequestMap;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import lombok.val;
+import org.apereo.cas.authentication.MultifactorAuthenticationFailedException;
 import org.apereo.cas.authentication.OneTimeTokenAccount;
 import org.apereo.cas.otp.repository.credentials.OneTimeTokenCredentialRepository;
 import org.springframework.http.HttpStatus;
 
 import java.util.*;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
+
+import static cz.ami.cas.inauth.authenticator.model.push.PushAuthenticationStatus.*;
 
 /**
  * Implementation of the {@link IInalogyAuthenticator} interface.
@@ -47,17 +55,18 @@ public class InalogyAuthenticatorService implements IInalogyAuthenticator {
     /**
      * Repository for managing push authentication requests.
      */
-    private final IInalogyPushAuthenticationRepository pushAuthenticationRepository;
-
-    /**
-     * Service for sending push notifications to devices.
-     */
-    private final InalogyMessagingService messagingService;
+    private final MfaRequestMap mfaRequestMap;
 
     /**
      * Storage for temporary accounts during registration.
      */
-    private final TemporaryAccountStorage temporaryAccountStorage;
+    private final RegistrationRequestMap registrationRequestMap;
+    
+    /**
+     * Service for sending push notifications to devices.
+     */
+    private final InalogyMessagingService messagingService;
+    
 
     /**
      * Service for OTP operations.
@@ -69,21 +78,21 @@ public class InalogyAuthenticatorService implements IInalogyAuthenticator {
      *
      * @param properties The configuration properties for the authenticator
      * @param tokenCredentialRepository Repository for storing and retrieving token credentials
-     * @param pushAuthenticationRepository Repository for managing push authentication requests
+     * @param mfaRequestMap Repository for managing push authentication requests
      * @param messagingService Service for sending push notifications
-     * @param temporaryAccountStorage Storage for temporary accounts during registration
+     * @param registrationRequestMap Storage for temporary accounts during registration
      */
     public InalogyAuthenticatorService(final CoreInalogyMultifactorProperties properties,
                                        final BaseInalogyAuthenticatorTokenCredentialRepository tokenCredentialRepository,
-                                       final IInalogyPushAuthenticationRepository pushAuthenticationRepository,
                                        final InalogyMessagingService messagingService,
-                                       final TemporaryAccountStorage temporaryAccountStorage
+                                       final MfaRequestMap mfaRequestMap,
+                                       final RegistrationRequestMap registrationRequestMap
     ) {
         this.properties = properties;
         this.tokenCredentialRepository = tokenCredentialRepository;
-        this.pushAuthenticationRepository = pushAuthenticationRepository;
+        this.mfaRequestMap = mfaRequestMap;
         this.messagingService = messagingService;
-        this.temporaryAccountStorage = temporaryAccountStorage;
+        this.registrationRequestMap = registrationRequestMap;
         this.otpService = new InalogyOtpService(this.properties);
     }
 
@@ -155,22 +164,22 @@ public class InalogyAuthenticatorService implements IInalogyAuthenticator {
      * @param username The username of the user
      * @return A list of active authentication requests
      */
-    public List<PendingPushAuthentication> findActivePendingAuthentications(String username) {
-        return pushAuthenticationRepository.findByUsername(username).stream()
-                .filter(auth -> !auth.isResponded() && !auth.isExpired())
-                .collect(Collectors.toList());
-    }
+//    public List<PendingPushAuthentication> findActivePendingAuthentications(String username) {
+//        return mfaRequestMap.findByUsername(username).stream()
+//                .filter(auth -> !auth.isResponded() && !auth.isExpired())
+//                .collect(Collectors.toList());
+//    }
 
     /**
-     * Finds the latest active authentication request for a user.
+     * Finds the latest active authentication mfa for a user.
      *
      * @param username The username of the user
-     * @return An Optional containing the found request, or an empty Optional if none found
+     * @return An Optional containing the found mfa, or an empty Optional if none found
      */
-    public Optional<PendingPushAuthentication> findLatestPendingAuthentication(String username) {
-        return findActivePendingAuthentications(username).stream()
-                .max(Comparator.comparing(PendingPushAuthentication::getCreatedAt));
-    }
+//    public Optional<PendingPushAuthentication> findLatestPendingAuthentication(String username) {
+//        return findActivePendingAuthentications(username).stream()
+//                .max(Comparator.comparing(PendingPushAuthentication::getCreatedAt));
+//    }
 
     /**
      * {@inheritDoc}
@@ -235,9 +244,18 @@ public class InalogyAuthenticatorService implements IInalogyAuthenticator {
             String callback = properties.getCallbackUrl();
 
             // Create a record of the pending authentication
-            val pendingAuth = new PendingPushAuthentication(
-                    pushAccount.getPushId(), username, challengeType, dataForChallenge, correctAnswer, 300
-            );
+            val pendingAuth = InalogyMfaRequest.builder()
+                    .requestId(UUID.randomUUID().toString())
+                    .userId(pushAccount.getUsername())
+                    .pushId(pushAccount.getPushId())
+                    .accountId(pushAccount.getId())
+                    .otp(null)
+                    .challengeType(challengeType)
+                    .challengeData(dataForChallenge)
+                    .userResponse(null)
+                    .status(PENDING)
+                    .validUntil(System.currentTimeMillis() + properties.getTimeoutMs())
+                    .build();
 
             if (!challengeType.equals("CHALLENGE_CHOOSE")) {
                 dataForChallenge = null;
@@ -260,8 +278,8 @@ public class InalogyAuthenticatorService implements IInalogyAuthenticator {
 
             LOGGER.debug("Initiated push authentication for user: [{}], pushId: [{}]", username, pushAccount.getPushId());
             // Save the record
-            pushAuthenticationRepository.save(pendingAuth);
-            return pushAccount.getPushId();
+            mfaRequestMap.putRequest(pendingAuth);
+            return pendingAuth.getPushId();
         } catch (Exception e) {
             LOGGER.error("Error initiating push authentication for user: [{}]", username, e);
             return null;
@@ -271,37 +289,40 @@ public class InalogyAuthenticatorService implements IInalogyAuthenticator {
     /**
      * {@inheritDoc}
      * <p>
-     * Checks the status of a push authentication request.
+     * Checks the status of a push authentication mfa.
      */
     @Override
-    public PushAuthenticationStatus checkPushAuthenticationStatus(String pushId) {
-        Optional<PendingPushAuthentication> authOpt = pushAuthenticationRepository.findByPushId(pushId);
-
-        if (authOpt.isEmpty()) {
-            LOGGER.debug("No pending authentication found for pushId: [{}]", pushId);
+    public PushAuthenticationStatus checkPushAuthenticationStatus(final String pushId) {
+        final var auth = mfaRequestMap.getRequestByPushId(pushId);
+        if (auth == null) {
+            LOGGER.debug("No pending authentication found for pushId=[{}]", pushId);
             return PushAuthenticationStatus.NOT_FOUND;
         }
 
-        PendingPushAuthentication auth = authOpt.get();
-
-        if (auth.isExpired()) {
-            LOGGER.debug("Authentication request expired for pushId: [{}]", pushId);
-            pushAuthenticationRepository.remove(pushId);
+        if (auth.getStatus() == PushAuthenticationStatus.EXPIRED) {
+            LOGGER.debug("Authentication expired for pushId=[{}], requestId=[{}]", pushId, auth.getRequestId());
+            mfaRequestMap.removeRequest(auth.getRequestId());
             return PushAuthenticationStatus.EXPIRED;
         }
 
-        if (auth.isResponded()) {
-            if (auth.isApproved()) {
-                LOGGER.debug("Authentication approved for pushId: [{}]", pushId);
-                return PushAuthenticationStatus.APPROVED;
-            } else {
-                LOGGER.debug("Authentication rejected for pushId: [{}]", pushId);
-                return PushAuthenticationStatus.REJECTED;
+        return switch (auth.getStatus()) {
+            case APPROVED -> {
+                LOGGER.debug("Authentication approved for pushId=[{}]", pushId);
+                yield PushAuthenticationStatus.APPROVED;
             }
-        }
-
-        LOGGER.debug("Authentication pending for pushId: [{}]", pushId);
-        return PushAuthenticationStatus.PENDING;
+            case REJECTED -> {
+                LOGGER.debug("Authentication rejected for pushId=[{}]", pushId);
+                yield PushAuthenticationStatus.REJECTED;
+            }
+            case PENDING -> {
+                LOGGER.debug("Authentication still pending for pushId=[{}]", pushId);
+                yield PushAuthenticationStatus.PENDING;
+            }
+            default -> {
+                LOGGER.warn("Unknown MFA status [{}] for pushId=[{}]", auth.getStatus(), pushId);
+                yield PushAuthenticationStatus.PENDING; // fallback
+            }
+        };
     }
 
     /**
@@ -334,35 +355,42 @@ public class InalogyAuthenticatorService implements IInalogyAuthenticator {
         // Find account by pushId
         val account = tokenCredentialRepository.getByPushId(pushId);
         if (account == null) {
-            return ValidationResult.error(HttpStatus.BAD_REQUEST, "device not found");
+            return ValidationResult.error(HttpStatus.FORBIDDEN, "device not found");
+        }
+
+        // Find the latest active authentication mfa
+        val pendingRequest = mfaRequestMap.getRequestByPushId(pushId);
+        if (pendingRequest == null) {
+            return ValidationResult.error(HttpStatus.FORBIDDEN, "authentication mfa not found");
         }
 
         // Check OTP
-        if (!validateOtp(account, Integer.parseInt(otp))) {
+        final int code;
+        try {
+            code = Integer.parseInt(otp);
+        } catch (NumberFormatException e) {
+            return ValidationResult.error(HttpStatus.BAD_REQUEST, "invalid OTP format");
+        }
+        if (!validateOtp(account, code)) {
+            mfaRequestMap.reject(pendingRequest);
             return ValidationResult.error(HttpStatus.FORBIDDEN, "invalid OTP");
         }
 
-        // Find the latest active authentication request
-        Optional<PendingPushAuthentication> pendingAuthOpt = findLatestPendingAuthentication(account.getUsername());
-        if (pendingAuthOpt.isEmpty()) {
-            return ValidationResult.error(HttpStatus.BAD_REQUEST, "authentication request not found");
-        }
-
-        PendingPushAuthentication pendingAuth = pendingAuthOpt.get();
-
         // Check the challenge response
         boolean isValidChallengeResponse = validateChallengeResponse(
-                pendingAuth.getChallengeType(),
-                pendingAuth.getDataForChallenge(),
+                pendingRequest.getChallengeType(),
+                pendingRequest.getChallengeData(),
                 challengeResponse
         );
 
         if (!isValidChallengeResponse) {
+            mfaRequestMap.reject(pendingRequest);
             return ValidationResult.error(HttpStatus.FORBIDDEN, "invalid challenge response");
         }
 
+        pendingRequest.setStatus(APPROVED);
         // Update the authentication status
-        pushAuthenticationRepository.updateResponse(pendingAuth.getPushId(), true);
+        mfaRequestMap.updateRequest(pendingRequest.getRequestId(), pendingRequest);
 
         return ValidationResult.success();
     }
@@ -370,11 +398,11 @@ public class InalogyAuthenticatorService implements IInalogyAuthenticator {
     /**
      * {@inheritDoc}
      * <p>
-     * Retrieves a pending push authentication request by its key ID.
+     * Retrieves a pending push authentication mfa by its key ID.
      */
     @Override
-    public PendingPushAuthentication getPendingPushAuthentication(String pushId) {
-        return pushAuthenticationRepository.findByPushId(pushId).orElse(null);
+    public InalogyMfaRequest getPendingPushAuthentication(String pushId) {
+        return mfaRequestMap.getRequestByPushId(pushId);
     }
 
     /**
@@ -390,21 +418,24 @@ public class InalogyAuthenticatorService implements IInalogyAuthenticator {
             return ValidationResult.error(HttpStatus.BAD_REQUEST, "device not found");
         }
 
+        // Find active authentication
+        val pendingRequest = mfaRequestMap.getRequestByPushId(pushId);
+        if (pendingRequest == null) {
+            return ValidationResult.error(HttpStatus.FORBIDDEN, "authentication mfa not found");
+        }
+
         // Check OTP
-        if (!validateOtp(account, Integer.parseInt(otp))) {
+        final int code;
+        try {
+            code = Integer.parseInt(otp);
+        } catch (NumberFormatException e) {
+            return ValidationResult.error(HttpStatus.BAD_REQUEST, "invalid OTP format");
+        }
+        if (!validateOtp(account, code)) {
             return ValidationResult.error(HttpStatus.FORBIDDEN, "invalid OTP");
         }
 
-        // Find active authentications
-        List<PendingPushAuthentication> activeAuths = findActivePendingAuthentications(account.getUsername());
-        if (activeAuths.isEmpty()) {
-            return ValidationResult.error(HttpStatus.BAD_REQUEST, "no active authentication requests found");
-        }
-
-        // Reject all active authentications
-        for (PendingPushAuthentication auth : activeAuths) {
-            pushAuthenticationRepository.updateResponse(auth.getPushId(), false);
-        }
+        mfaRequestMap.reject(pendingRequest);
 
         return ValidationResult.success();
     }
@@ -431,6 +462,12 @@ public class InalogyAuthenticatorService implements IInalogyAuthenticator {
 
             val currentPushId = account.getPushId();
 
+            val mfaRequest = mfaRequestMap.getRequestByPushId(currentPushId);
+            if (mfaRequest != null) {
+                mfaRequest.setPushId(newPushId);
+                mfaRequestMap.updateRequest(mfaRequest.getRequestId(), mfaRequest);
+            }
+
             // Update pushId
             InalogyAuthenticatorAccount inalogyAccount = InalogyAuthenticatorAccount.from(account);
             inalogyAccount.setPushId(newPushId);
@@ -456,36 +493,36 @@ public class InalogyAuthenticatorService implements IInalogyAuthenticator {
                                                String deviceType, String initialCode) {
         try {
 
-            Optional<? extends OneTimeTokenAccount> accountOpt = temporaryAccountStorage.findBySecret(encodedSecret);
+            val account = registrationRequestMap.getRequestBySecret(encodedSecret);
 
-            // If not found in temporary storage, search in the main repository
-            if (accountOpt.isEmpty()) {
-                accountOpt = tokenCredentialRepository.load().stream()
-                        .filter(acc -> encodedSecret.equals(acc.getSecretKey()))
-                        .findFirst();
-            }
-
-            if (accountOpt.isEmpty()) {
+            if (account == null) {
                 return ValidationResult.error(HttpStatus.FORBIDDEN, "didnt found account with this secret key");
             }
 
-            OneTimeTokenAccount account = accountOpt.get();
+            val otp = Integer.parseInt(initialCode);
+
+            account.setPushId(pushId);
+            account.setDeviceKeyId(deviceKeyId);
+            account.setDeviceType(deviceType);
+            account.setValidationCode(otp);
+            account.setDeviceName(deviceName);
+
+            InalogyAuthenticatorAccount inalogyAccount = InalogyAuthenticatorAccount.from(account);
 
             // Check initialCode
-            if (!validateOtp(InalogyAuthenticatorAccount.from(account), Integer.parseInt(initialCode))) {
-                temporaryAccountStorage.updateRegistrationStatus(account.getId(), "REJECTED");
+            if (!validateOtp(inalogyAccount, otp)) {
+                registrationRequestMap.reject(account);
                 return ValidationResult.error(HttpStatus.FORBIDDEN, "otp registration data is invalid");
             }
 
-            // Update account with device data
-            temporaryAccountStorage.updateAccount(account.getId(), pushId, deviceKeyId, deviceType, deviceName);
+            account.setStatus(PushRegistrationStatus.REGISTERED);
+            registrationRequestMap.updateRequest(account.getRequestId(), account);
 
-            InalogyAuthenticatorAccount inalogyAccount = InalogyAuthenticatorAccount.from(account);
-            inalogyAccount.setPushId(pushId);
-            inalogyAccount.setDeviceKeyId(deviceKeyId);
-            inalogyAccount.setDeviceType(deviceType);
-            inalogyAccount.setName(deviceName);
-            tokenCredentialRepository.update(inalogyAccount);
+//            inalogyAccount.setPushId(pushId);
+//            inalogyAccount.setDeviceKeyId(deviceKeyId);
+//            inalogyAccount.setDeviceType(deviceType);
+//            inalogyAccount.setName(deviceName);
+//            tokenCredentialRepository.update(inalogyAccount);
 
             LOGGER.debug("Registered push device for user: [{}], device: [{}]", account.getUsername(), deviceName);
 

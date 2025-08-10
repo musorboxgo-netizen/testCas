@@ -1,6 +1,7 @@
 package cz.ami.cas.inauth.credential;
 
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import cz.ami.cas.inauth.hazelcast.registration.InalogyRegistrationRequest;
 import lombok.Data;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -22,6 +23,7 @@ public class InalogyAuthenticatorAccount extends OneTimeTokenAccount {
     private String deviceType;    // IOS или ANDROID
     private String pushId;        // Push notification token
     private String deviceKeyId;
+    private String deviceName;
 
     /**
      * From one time token account into inalogy account.
@@ -46,9 +48,28 @@ public class InalogyAuthenticatorAccount extends OneTimeTokenAccount {
             account.setDeviceType(inalogyAcct.getDeviceType());
             account.setPushId(inalogyAcct.getPushId());
             account.setDeviceKeyId(inalogyAcct.getDeviceKeyId());
+            account.setDeviceName(inalogyAcct.getDeviceName());
         }
 
         return account;
+    }
+
+    public static InalogyAuthenticatorAccount from(final InalogyRegistrationRequest request) {
+
+        return builder()
+                .id(request.getId())
+                .name(request.getName())
+                .username(request.getUsername())
+                .secretKey(request.getEncodedSecret())
+                .validationCode(request.getValidationCode())
+                .scratchCodes(request.getScratchCodes())
+                .registrationDate(request.getRegistrationDate())
+                .source(request.getSource())
+                .deviceType(request.getDeviceType())
+                .pushId(request.getPushId())
+                .deviceKeyId(request.getDeviceKeyId())
+                .deviceName(request.getDeviceName())
+                .build();
     }
 
     @Override

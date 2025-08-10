@@ -2,15 +2,13 @@ package cz.ami.cas.inauth.web.flow;
 
 import cz.ami.cas.inauth.authenticator.repository.TemporaryAccountStorage;
 import cz.ami.cas.inauth.credential.InalogyAuthenticatorAccount;
-import cz.ami.cas.inauth.credential.InalogyAuthenticatorTokenCredential;
-import cz.ami.cas.inauth.token.InalogyAuthenticatorToken;
+import cz.ami.cas.inauth.hazelcast.registration.RegistrationRequestMap;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import lombok.val;
 import org.apereo.cas.authentication.OneTimeTokenAccount;
 import org.apereo.cas.configuration.CasConfigurationProperties;
 import org.apereo.cas.otp.repository.credentials.OneTimeTokenCredentialRepository;
-import org.apereo.cas.otp.repository.credentials.OneTimeTokenCredentialValidator;
 import org.apereo.cas.otp.web.flow.OneTimeTokenAccountCreateRegistrationAction;
 import org.apereo.cas.util.LoggingUtils;
 import org.apereo.cas.web.flow.actions.BaseCasWebflowAction;
@@ -19,8 +17,6 @@ import org.apereo.cas.web.support.WebUtils;
 import org.springframework.http.HttpStatus;
 import org.springframework.webflow.execution.Event;
 import org.springframework.webflow.execution.RequestContext;
-
-import java.util.Objects;
 
 @Slf4j
 @RequiredArgsConstructor
@@ -36,11 +32,11 @@ public class InalogyAuthenticatorSaveRegistrationAction extends BaseCasWebflowAc
     public static final String REQUEST_PARAMETER_ACCOUNT_NAME = "accountName";
 
     /**
-     * Parameter name indicating a validation request event.
+     * Parameter name indicating a validation mfa event.
      */
     public static final String REQUEST_PARAMETER_VALIDATE = "validate";
 
-    private final TemporaryAccountStorage temporaryAccountStorage;
+    private final RegistrationRequestMap registrationRequestMap;
 
     private final OneTimeTokenCredentialRepository repository;
 
@@ -58,56 +54,56 @@ public class InalogyAuthenticatorSaveRegistrationAction extends BaseCasWebflowAc
                 .build();
     }
 
-    protected InalogyAuthenticatorAccount getCandidateAccountFrom(final RequestContext requestContext) {
-        return (InalogyAuthenticatorAccount) requestContext.getFlowScope()
+    protected OneTimeTokenAccount getCandidateAccountFrom(final RequestContext requestContext) {
+        return requestContext.getFlowScope()
                 .get(OneTimeTokenAccountCreateRegistrationAction.FLOW_SCOPE_ATTR_ACCOUNT, OneTimeTokenAccount.class);
     }
 
     @Override
     protected Event doExecuteInternal(final RequestContext requestContext) {
         try {
-            val currentAcct = getCandidateAccountFrom(requestContext);
+            var currentAcct = getCandidateAccountFrom(requestContext);
+            val requestId = requestContext.getFlowScope().get("regRequestId", String.class);
+            val account = registrationRequestMap.getRequest(requestId);
+            if (account == null) {
+                LOGGER.error("Account with id [{}] and username [{}] is not found in registration context", currentAcct.getId(), currentAcct.getUsername());
+                return getErrorEvent(requestContext);
+            }
             val deviceRegistrationEnabled = MultifactorAuthenticationWebflowUtils.isMultifactorDeviceRegistrationEnabled(requestContext);
             if (!deviceRegistrationEnabled) {
-                LOGGER.warn("Device registration is disabled for [{}]", currentAcct.getUsername());
+                LOGGER.warn("Device registration is disabled for [{}]", account.getUsername());
                 return getErrorEvent(requestContext);
             }
 
             if (!casProperties.getAuthn().getMfa().getInalogy().getCore().isMultipleDeviceRegistrationEnabled()
-                    && repository.count(currentAcct.getUsername()) > 0) {
-                LOGGER.warn("Unable to register multiple devices for [{}]", currentAcct.getUsername());
+                    && repository.count(account.getUsername()) > 0) {
+                LOGGER.warn("Unable to register multiple devices for [{}]", account.getUsername());
                 return getErrorEvent(requestContext);
             }
-            val accountOpt = temporaryAccountStorage.findById(currentAcct.getId());
-            if (accountOpt.isEmpty()) {
-                LOGGER.error("Account with id [{}] and username [{}] is not found in registration context", currentAcct.getId(), currentAcct.getUsername());
-                return getErrorEvent(requestContext);
-            }
-
-            val account = accountOpt.get();
 
             account.setName(WebUtils.getRequestParameterOrAttribute(requestContext, REQUEST_PARAMETER_ACCOUNT_NAME).orElseThrow());
 
             val validate = requestContext.getRequestParameters().getBoolean(REQUEST_PARAMETER_VALIDATE);
 
-            val regState = temporaryAccountStorage.getRegistrationStatus(currentAcct.getId());
+            val regState = account.getStatus();
 
             switch (regState) {
-                case TemporaryAccountStorage.STATUS_WAITING -> {
+                case PENDING -> {
                     LOGGER.debug("Waiting for account [{}] being registered", account.getUsername());
                     return result("waiting");
                 }
-                case TemporaryAccountStorage.STATUS_REJECTED -> {
+                case EXPIRED -> {
                     LOGGER.error("Unable to register device for [{}]", currentAcct.getUsername());
-                    temporaryAccountStorage.removeAccount(account.getId());
+                    registrationRequestMap.removeRequest(account.getRequestId());
                     requestContext.getFlowScope().put("registrationError", "The verification code is invalid or has expired. Please try again.");
                     return getErrorEvent(requestContext);
                 }
-                case TemporaryAccountStorage.STATUS_REGISTERED -> {
+                case REGISTERED -> {
                     if (validate == null || !validate) {
+                        val finalAcc = InalogyAuthenticatorAccount.from(account);
                         LOGGER.debug("Storing account [{}]", account);
-                        temporaryAccountStorage.removeAccount(account.getId());
-                        MultifactorAuthenticationWebflowUtils.putOneTimeTokenAccount(requestContext, repository.save(account));
+                        registrationRequestMap.removeRequest(account.getRequestId());
+                        MultifactorAuthenticationWebflowUtils.putOneTimeTokenAccount(requestContext, repository.save(finalAcc));
                     }
                     return success();
                 }

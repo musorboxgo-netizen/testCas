@@ -4,6 +4,7 @@ import cz.ami.cas.inauth.authenticator.model.push.PendingPushAuthentication;
 import cz.ami.cas.inauth.authenticator.model.push.ValidationResult;
 import cz.ami.cas.inauth.authenticator.model.key.InalogyAuthenticatorKey;
 import cz.ami.cas.inauth.authenticator.model.push.PushAuthenticationStatus;
+import cz.ami.cas.inauth.hazelcast.mfa.InalogyMfaRequest;
 import org.apereo.cas.authentication.OneTimeTokenAccount;
 
 /**
@@ -78,28 +79,28 @@ public interface IInalogyAuthenticator {
                                                String deviceType, String initialCode);
 
     /**
-     * Initiates a push authentication request for a user.
+     * Initiates a push authentication mfa for a user.
      *
      * @param username The username of the user to authenticate
-     * @return The key ID of the created authentication request, or null if the request failed
+     * @return The key ID of the created authentication mfa, or null if the mfa failed
      */
     String initiatePushAuthentication(String username);
 
     /**
-     * Checks the status of a push authentication request.
+     * Checks the status of a push authentication mfa.
      *
-     * @param keyId The key ID of the authentication request
-     * @return The current status of the authentication request
+     * @param keyId The key ID of the authentication mfa
+     * @return The current status of the authentication mfa
      */
     PushAuthenticationStatus checkPushAuthenticationStatus(String keyId);
 
     /**
-     * Retrieves a pending push authentication request.
+     * Retrieves a pending push authentication mfa.
      *
-     * @param pushId The key ID of the authentication request
-     * @return The pending push authentication request, or null if not found
+     * @param pushId The key ID of the authentication mfa
+     * @return The pending push authentication mfa, or null if not found
      */
-    PendingPushAuthentication getPendingPushAuthentication(String pushId);
+    InalogyMfaRequest getPendingPushAuthentication(String pushId);
 
     /**
      * Validates a challenge response based on the challenge type.

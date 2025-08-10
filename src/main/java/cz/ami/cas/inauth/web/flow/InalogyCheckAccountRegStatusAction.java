@@ -1,6 +1,7 @@
 package cz.ami.cas.inauth.web.flow;
 
 import cz.ami.cas.inauth.authenticator.repository.TemporaryAccountStorage;
+import cz.ami.cas.inauth.hazelcast.registration.RegistrationRequestMap;
 import lombok.extern.slf4j.Slf4j;
 import lombok.val;
 import org.apereo.cas.authentication.OneTimeTokenAccount;
@@ -12,10 +13,10 @@ import org.springframework.webflow.execution.RequestContext;
 @Slf4j
 public class InalogyCheckAccountRegStatusAction extends AbstractAction {
 
-    private final TemporaryAccountStorage temporaryAccountStorage;
+    private final RegistrationRequestMap registrationRequestMap;
 
-    public InalogyCheckAccountRegStatusAction(TemporaryAccountStorage temporaryAccountStorage) {
-        this.temporaryAccountStorage = temporaryAccountStorage;
+    public InalogyCheckAccountRegStatusAction(RegistrationRequestMap registrationRequestMap) {
+        this.registrationRequestMap = registrationRequestMap;
     }
 
     @Override
@@ -27,22 +28,20 @@ public class InalogyCheckAccountRegStatusAction extends AbstractAction {
             return new Event(this, CasWebflowConstants.TRANSITION_ID_ERROR);
         }
 
-        // Проверяем статус регистрации
-        val status = temporaryAccountStorage.getRegistrationStatus(account.getId());
+        val registrationRequestId = flowScope.getString("registrationRequestId");
+
+        val status = registrationRequestMap.getRequest(registrationRequestId).getStatus();
 
         LOGGER.debug("Checking registration status for account ID [{}]: status is [{}]",
                 account.getId(), status);
 
         return switch (status) {
-            case TemporaryAccountStorage.STATUS_REGISTERED ->
-                // Если зарегистрирован - переходим к инициализации push
+            case REGISTERED ->
                     success();
-            case TemporaryAccountStorage.STATUS_REJECTED ->
-                // Если отклонён - возвращаем stop
-                    new Event(this, "stop");
-            default ->
-                // Если всё ещё ждём - продолжаем ожидание
+            case PENDING->
                     new Event(this, "waiting");
+            default ->
+                    new Event(this, "stop");
         };
     }
 }

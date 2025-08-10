@@ -23,7 +23,6 @@ public class InalogyPushCheckResponseAction extends AbstractMultifactorAuthentic
             return error();
         }
 
-        // Проверяем статус аутентификации
         val status = inalogyAuthenticator.checkPushAuthenticationStatus(pushId);
 
         switch (status) {
@@ -45,13 +44,12 @@ public class InalogyPushCheckResponseAction extends AbstractMultifactorAuthentic
 
             case PENDING:
             default:
-                // Проверяем, не истекло ли время ожидания в UI
                 val waitStartTime = requestContext.getFlowScope().getLong("pushAuthWaitStartTime",
                         System.currentTimeMillis());
                 val currentTime = System.currentTimeMillis();
                 val waitTime = currentTime - waitStartTime;
 
-                if (waitTime > 60000) { // 1 минута тайм-аут UI
+                if (waitTime > 60000) {
                     LOGGER.debug("Push authentication UI timeout for pushId: [{}]", pushId);
                     return new EventFactorySupport().event(this, "timeout");
                 }

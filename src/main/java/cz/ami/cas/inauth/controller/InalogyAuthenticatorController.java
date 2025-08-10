@@ -94,14 +94,14 @@ public class InalogyAuthenticatorController {
      * Registers a new push authentication device for the user.
      * This endpoint is used during the initial setup of push authentication.
      *
-     * @param request The submit request containing device information
+     * @param request The submit mfa containing device information
      * @return ResponseEntity with no content if successful, or error response
      */
     @PostMapping("/submit")
     public ResponseEntity<?> submit(@RequestBody SubmitRequest request) {
-        LOGGER.debug("Received submit request: [{}]", request);
+        LOGGER.debug("Received submit mfa: [{}]", request);
 
-        // Validate request
+        // Validate mfa
         if (request.getDeviceName() == null || request.getPushId() == null ||
                 request.getDeviceKeyId() == null || request.getEncodedSecret() == null ||
                 request.getDeviceType() == null || request.getInitialCode() == null) {
@@ -137,7 +137,7 @@ public class InalogyAuthenticatorController {
     @GetMapping("/check")
     public ResponseEntity<Map<String, String>> checkStatus(@RequestParam String keyId) {
         var status = inalogyAuthenticator.checkPushAuthenticationStatus(keyId);
-        LOGGER.debug("Received check status request.");
+        LOGGER.debug("Received check status mfa.");
         return ResponseEntity.ok(Map.of("status", status.name()));
     }
 
@@ -145,20 +145,21 @@ public class InalogyAuthenticatorController {
      * Validates a push authentication challenge response.
      * This endpoint is called when the user responds to a push notification challenge.
      *
-     * @param request The validate request containing the challenge response
+     * @param request The validate mfa containing the challenge response
      * @return ResponseEntity with no content if successful, or error response
      */
     @PostMapping("/validate")
     public ResponseEntity<?> validate(@RequestBody ValidateRequest request) {
-        LOGGER.debug("Received validate request: [{}]", request);
+        LOGGER.debug("Received validate mfa: [{}]", request);
 
-        // Validate request
+        // Validate mfa
         if (request.getPushId() == null || request.getOtp() == null || request.getChallengeResponse() == null) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(new ErrorResponse("one or more data field for push validation are blank"));
         }
 
-        // Валидируем аутентификацию
+
+
         ValidationResult result = inalogyAuthenticator.validatePushAuthentication(
                 request.getPushId(),
                 request.getOtp(),
@@ -178,20 +179,19 @@ public class InalogyAuthenticatorController {
      * Terminates an active push authentication session.
      * This endpoint is used to cancel or end a push authentication process.
      *
-     * @param request The terminate request
+     * @param request The terminate mfa
      * @return ResponseEntity with no content if successful, or error response
      */
     @PostMapping("/terminate")
     public ResponseEntity<?> terminate(@RequestBody TerminateRequest request) {
-        LOGGER.debug("Received terminate request: [{}]", request);
+        LOGGER.debug("Received terminate mfa: [{}]", request);
 
-        // Validate request
+        // Validate mfa
         if (request.getPushId() == null || request.getOtp() == null) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(new ErrorResponse("one or more data field for push termination are blank"));
         }
 
-        // Терминируем аутентификацию
         ValidationResult result = inalogyAuthenticator.terminatePushAuthentication(
                 request.getPushId(),
                 request.getOtp()
@@ -210,14 +210,14 @@ public class InalogyAuthenticatorController {
      * Updates the push ID for an existing device.
      * This is useful when the device's push notification token changes.
      *
-     * @param request The push ID change request
+     * @param request The push ID change mfa
      * @return ResponseEntity with no content if successful, or error response
      */
     @PostMapping("/push-id-change")
     public ResponseEntity<?> pushIdChange(@RequestBody PushIdChangeRequest request) {
-        LOGGER.debug("Received push ID change request: [{}]", request);
+        LOGGER.debug("Received push ID change mfa: [{}]", request);
 
-        // Validate request
+        // Validate mfa
         if (request.getDeviceKey() == null || request.getPushId() == null || request.getOtp() == null) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(new ErrorResponse("one or more data field for push ID change are blank"));

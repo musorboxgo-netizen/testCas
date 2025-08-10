@@ -1,6 +1,7 @@
 package cz.ami.cas.inauth.web.flow;
 
 import cz.ami.cas.inauth.authenticator.model.push.PendingPushAuthentication;
+import cz.ami.cas.inauth.hazelcast.mfa.InalogyMfaRequest;
 import cz.ami.cas.inauth.service.IInalogyAuthenticator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -28,7 +29,6 @@ public class InalogyInitiatePushAuthenticationAction extends AbstractMultifactor
         val principal = authentication.getPrincipal();
         val username = principal.getId();
 
-        // Инициируем push-аутентификацию
         String pushId = inalogyAuthenticatorService.initiatePushAuthentication(username);
 
         if (pushId == null) {
@@ -36,13 +36,12 @@ public class InalogyInitiatePushAuthenticationAction extends AbstractMultifactor
             return new EventFactorySupport().event(this, "deviceNotRegistered");
         }
 
-        PendingPushAuthentication authn = inalogyAuthenticatorService.getPendingPushAuthentication(pushId);
+        InalogyMfaRequest authn = inalogyAuthenticatorService.getPendingPushAuthentication(pushId);
 
-        // Сохраняем pushId в flow scope для последующей проверки
         requestContext.getFlowScope().put("pushAuthPushId", pushId);
         requestContext.getFlowScope().put("pushAuthWaitStartTime", System.currentTimeMillis());
         requestContext.getFlowScope().put("challengeType", authn.getChallengeType());
-        requestContext.getFlowScope().put("challengeData", authn.getDataForChallenge());
+        requestContext.getFlowScope().put("challengeData", authn.getChallengeData());
 
         LOGGER.debug("Push authentication initiated for user: [{}], pushId: [{}]", username, pushId);
         return success();

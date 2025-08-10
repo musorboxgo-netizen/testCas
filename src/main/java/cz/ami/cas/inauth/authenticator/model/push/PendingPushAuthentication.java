@@ -4,7 +4,7 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 
 /**
- * Represents a pending push authentication request.
+ * Represents a pending push authentication mfa.
  * This class contains all the information needed to track and validate
  * a push-based authentication challenge sent to a user's device.
  *
@@ -12,8 +12,30 @@ import lombok.Data;
  * @since 1.0.0
  */
 @Data
-@AllArgsConstructor
 public class PendingPushAuthentication {
+
+    /**
+     * Creates a new pending push authentication mfa with the specified parameters.
+     *
+     * @param pushId The unique identifier for the authentication key
+     * @param username The username of the user being authenticated
+     * @param challengeType The type of challenge being used
+     * @param dataForChallenge The data needed for the challenge
+     * @param correctChallengeResponse The expected correct response
+     * @param validitySeconds How long the mfa is valid in seconds
+     */
+    public PendingPushAuthentication(String pushId, String username,
+                                     String challengeType, String dataForChallenge,
+                                     String correctChallengeResponse, long validitySeconds) {
+        this.pushId = pushId;
+        this.username = username;
+        this.challengeType = challengeType;
+        this.dataForChallenge = dataForChallenge;
+        this.correctChallengeResponse = correctChallengeResponse;
+        this.createdAt = System.currentTimeMillis();
+        this.validUntil = this.createdAt + (validitySeconds * 1000);
+    }
+
     /**
      * Unique identifier for the authentication key.
      */
@@ -40,54 +62,32 @@ public class PendingPushAuthentication {
     private String correctChallengeResponse;
 
     /**
-     * Timestamp when the authentication request was created.
+     * Timestamp when the authentication mfa was created.
      */
     private final long createdAt;
 
     /**
-     * Timestamp until when the authentication request is valid.
+     * Timestamp until when the authentication mfa is valid.
      */
     private final long validUntil;
 
     /**
-     * Flag indicating if the request has been responded to.
+     * Flag indicating if the mfa has been responded to.
      */
     private boolean responded = false;
 
     /**
-     * Flag indicating if the request has been approved.
+     * Flag indicating if the mfa has been approved.
      */
     private boolean approved = false;
 
     /**
-     * Timestamp when the request was responded to.
+     * Timestamp when the mfa was responded to.
      */
     private long respondedAt = 0;
 
     /**
-     * Creates a new pending push authentication request with the specified parameters.
-     *
-     * @param pushId The unique identifier for the authentication key
-     * @param username The username of the user being authenticated
-     * @param challengeType The type of challenge being used
-     * @param dataForChallenge The data needed for the challenge
-     * @param correctChallengeResponse The expected correct response
-     * @param validitySeconds How long the request is valid in seconds
-     */
-    public PendingPushAuthentication(String pushId, String username,
-                                     String challengeType, String dataForChallenge,
-                                     String correctChallengeResponse, long validitySeconds) {
-        this.pushId = pushId;
-        this.username = username;
-        this.challengeType = challengeType;
-        this.dataForChallenge = dataForChallenge;
-        this.correctChallengeResponse = correctChallengeResponse;
-        this.createdAt = System.currentTimeMillis();
-        this.validUntil = this.createdAt + (validitySeconds * 1000);
-    }
-
-    /**
-     * Checks if the authentication request has expired.
+     * Checks if the authentication mfa has expired.
      *
      * @return true if the current time is after the validUntil timestamp, false otherwise
      */
@@ -96,9 +96,9 @@ public class PendingPushAuthentication {
     }
 
     /**
-     * Sets the response for this authentication request.
+     * Sets the response for this authentication mfa.
      *
-     * @param approved true if the request is approved, false if rejected
+     * @param approved true if the mfa is approved, false if rejected
      */
     public void setResponse(boolean approved) {
         this.responded = true;

@@ -62,7 +62,7 @@ public class InalogyMessagingService {
                     challengeType, dataForChallenge, keyId, callback, validUntil
             );
 
-            // Create request body
+            // Create mfa body
             String requestBody = String.format(
                     "{\"deviceId\":\"%s\",\"deviceType\":\"%s\",\"title\":\"Authentication required\",\"body\":\"Verify your identity to continue.\",\"sound\":\"default\",\"serializedData\":\"%s\"}",
                     deviceId, deviceType, serializedData.replace("\"", "\\\"")

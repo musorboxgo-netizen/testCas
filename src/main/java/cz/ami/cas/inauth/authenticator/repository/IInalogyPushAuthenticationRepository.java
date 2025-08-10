@@ -21,17 +21,17 @@ public interface IInalogyPushAuthenticationRepository {
     String BEAN_NAME = "inalogyPushAuthenticationRepository";
 
     /**
-     * Saves a push authentication request to the repository.
+     * Saves a push authentication mfa to the repository.
      *
-     * @param authentication The authentication request to save
+     * @param authentication The authentication mfa to save
      */
     void save(PendingPushAuthentication authentication);
 
     /**
-     * Finds a push authentication request by its push ID.
+     * Finds a push authentication mfa by its push ID.
      *
      * @param pushId The push ID to search for
-     * @return An Optional containing the authentication request if found, or empty if not found
+     * @return An Optional containing the authentication mfa if found, or empty if not found
      */
     Optional<PendingPushAuthentication> findByPushId(String pushId);
 
@@ -44,18 +44,18 @@ public interface IInalogyPushAuthenticationRepository {
     List<PendingPushAuthentication> findByUsername(String username);
 
     /**
-     * Updates the response status of a push authentication request.
+     * Updates the response status of a push authentication mfa.
      *
-     * @param pushId The push ID of the authentication request to update
-     * @param approved True if the request was approved, false if rejected
+     * @param pushId The push ID of the authentication mfa to update
+     * @param approved True if the mfa was approved, false if rejected
      */
     void updateResponse(String pushId, boolean approved);
 
     /**
-     * Removes a push authentication request from the repository.
+     * Removes a push authentication mfa from the repository.
      *
-     * @param pushId The push ID of the authentication request to remove
-     * @return True if the request was found and removed, false otherwise
+     * @param pushId The push ID of the authentication mfa to remove
+     * @return True if the mfa was found and removed, false otherwise
      */
     boolean remove(String pushId);
 

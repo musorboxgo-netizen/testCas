@@ -35,7 +35,7 @@ public class InMemoryInalogyPushAuthenticationRepository implements IInalogyPush
     /**
      * {@inheritDoc}
      * <p>
-     * This implementation stores the authentication request in the in-memory map
+     * This implementation stores the authentication mfa in the in-memory map
      * and logs the operation.
      */
     @Override
@@ -49,7 +49,7 @@ public class InMemoryInalogyPushAuthenticationRepository implements IInalogyPush
     /**
      * {@inheritDoc}
      * <p>
-     * This implementation retrieves the authentication request from the in-memory map.
+     * This implementation retrieves the authentication mfa from the in-memory map.
      */
     @Override
     public Optional<PendingPushAuthentication> findByPushId(String pushId) {
@@ -72,7 +72,7 @@ public class InMemoryInalogyPushAuthenticationRepository implements IInalogyPush
     /**
      * {@inheritDoc}
      * <p>
-     * This implementation updates the response status of the authentication request
+     * This implementation updates the response status of the authentication mfa
      * in the in-memory map and logs the operation.
      */
     @Override
@@ -94,7 +94,7 @@ public class InMemoryInalogyPushAuthenticationRepository implements IInalogyPush
     /**
      * {@inheritDoc}
      * <p>
-     * This implementation removes the authentication request from the in-memory map
+     * This implementation removes the authentication mfa from the in-memory map
      * and logs the operation.
      */
     @Override
