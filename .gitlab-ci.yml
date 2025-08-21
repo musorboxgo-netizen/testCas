@@ -1,0 +1,34 @@
+stages:
+  - publish
+
+variables:
+  GRADLE_OPTS: "-Dorg.gradle.daemon=false"
+  GITLAB_PROJECT_ID: "708"
+
+cache:
+  key: "${CI_PROJECT_ID}"
+  paths:
+    - .gradle/
+    - ~/.gradle/
+
+publish_snapshot:
+  stage: publish
+  image: gradle:8.8-jdk21
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "master"'
+  script:
+    - echo "Publishing SNAPSHOT from ${CI_COMMIT_BRANCH}"
+    - export GL_AUTH_HEADER=Job-Token
+    - export GITLAB_PRIVATE_TOKEN=$CI_JOB_TOKEN
+    - ./gradlew --no-daemon -PgitlabProjectId=${GITLAB_PROJECT_ID} publish
+
+publish_release:
+  stage: publish
+  image: gradle:8.8-jdk21
+  rules:
+    - if: '$CI_COMMIT_TAG =~ /^v.+$/'
+  script:
+    - echo "Publishing RELEASE ${CI_COMMIT_TAG}"
+    - export GL_AUTH_HEADER=Job-Token
+    - export GITLAB_PRIVATE_TOKEN=$CI_JOB_TOKEN
+    - ./gradlew --no-daemon -PgitlabProjectId=${GITLAB_PROJECT_ID} publish

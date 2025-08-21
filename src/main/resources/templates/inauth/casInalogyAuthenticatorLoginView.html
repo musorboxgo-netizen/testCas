@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout" layout:decorate="~{layout}">
+
+<head>
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
+    <title th:text="#{cas.mfa.inalogy.pagetitle}">Inalogy Authenticator Authentication</title>
+    <link href="../../static/css/cas.css" rel="stylesheet" th:remove="tag" />
+
+    <style>
+        #login h2{margin-bottom:.75rem;font-weight:700}
+
+        .timer-card{margin-top:auto;padding:12px 14px;border-radius:14px;background:#f8fafc; /* slate-50 */
+            box-shadow:0 1px 2px rgba(0,0,0,.05) inset}
+        .countdown-pill{display:inline-flex;align-items:center;gap:.5rem;padding:.45rem .75rem;border-radius:999px;
+            background:#eef2f7;font-weight:700}
+        .countdown-number{min-width:2ch;text-align:right}
+        .progress{height:6px;width:100%;background:#e5e7eb;border-radius:999px;overflow:hidden;margin-top:.5rem}
+        .progress>.bar{height:100%;width:100%;background:#0d6efd;transition:width .25s linear}
+    </style>
+</head>
+
+<body id="cas">
+<main role="main" class="container mt-3 mb-3">
+    <div layout:fragment="content" id="login" class="mdc-card card mdc-card-content w-lg-50 p-4 m-auto">
+
+        <h2 th:text="#{cas.mfa.inalogy.auth.pagetitle.authn}">Inalogy Authenticator Authentication</h2>
+
+        <div th:if="${challengeType == 'CHALLENGE_APPROVE'}">
+            <p th:text="#{cas.mfa.inalogy.auth.message.approve}">
+                Please confirm your login in the Inalogy Authenticator app.
+            </p>
+        </div>
+        <div th:if="${challengeType == 'CHALLENGE_WRITE'}">
+            <p th:text="#{cas.mfa.inalogy.auth.message.write}">
+                Please enter the code displayed in the Inalogy Authenticator app.
+            </p>
+            <div class="text-center mb-4">
+                <h3 th:text="${challengeData}">123456</h3>
+            </div>
+        </div>
+        <div th:if="${challengeType == 'CHALLENGE_CHOOSE'}">
+            <p th:text="#{cas.mfa.inalogy.auth.message.choose}">
+                Please select the correct number in the application Inalogy Authenticator.
+            </p>
+            <div class="text-center mb-4">
+                <div class="d-flex justify-content-around">
+                    <div th:each="option : ${challengeData}" class="p-2">
+                        <h3 th:text="${option}">123</h3>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <form method="post" id="push-approve-form" th:action="@{/login}">
+            <input type="hidden" name="_eventId" value="submit" />
+            <input type="hidden" name="execution" th:value="${flowExecutionKey}" />
+            <input type="hidden" name="pushAuthPushId" th:value="${pushAuthPushId}" />
+        </form>
+
+        <span th:if="${accounts}">
+                <p>
+                    <hr width="75%">
+                <p th:utext="#{cas.mfa.inalogy.auth.devices.select}"></p>
+                <form method="post" id="fm2">
+                    <input type="hidden" name="_eventId" value="select" />
+                    <input type="hidden" name="execution" th:value="${flowExecutionKey}" />
+                    <button id="selectDeviceButton" class="mdc-button mdc-button--raised btn btn-primary me-2" accesskey="s">
+                        <span class="mdc-button__label" th:text="#{screen.authentication.gauth.selectdevice}">Select Device</span>
+                    </button>
+                </form>
+            </span>
+
+        <div id="deviceRegistrationDiv" th:if="${mfaDeviceRegistrationEnabled}">
+            <p>
+            <hr width="75%">
+            <p th:utext="#{screen.authentication.gauth.reganotherdevice}"></p>
+            <form method="post" id="registerForm" th:action="@{/login}">
+                <input type="hidden" name="_eventId" value="register" />
+                <input type="hidden" name="execution" th:value="${flowExecutionKey}" />
+                <button class="mdc-button mdc-button--raised btn btn-primary me-2" name="register">
+                    <span class="mdc-button__label" th:text="#{screen.welcome.button.register}">Register New Device</span>
+                </button>
+            </form>
+        </div>
+
+        <div class="timer-card mt-3" id="countdown" aria-live="polite"
+             th:attr="data-redirect-seconds=${redirectSeconds} ?: 45">
+            <div class="countdown-pill">
+                <span th:text="#{cas.common.redirect.in}">Redirect in</span>
+                <span class="countdown-number" id="countdown-number">--</span>
+                <span>sec</span>
+            </div>
+            <div class="progress" aria-hidden="true">
+                <div class="bar" id="countdown-bar"></div>
+            </div>
+            <small class="text-muted d-block mt-1"
+                   th:text="${'Auto redirect will occur in ' + (redirectSeconds ?: 45) + ' sec'}">
+                Auto redirect will occur in 45 sec
+            </small>
+        </div>
+
+    </div>
+</main>
+
+</body>
+</html>

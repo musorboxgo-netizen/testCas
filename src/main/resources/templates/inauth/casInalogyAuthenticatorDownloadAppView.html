@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout}">
+
+<head>
+    <meta http-equiv="X-UA-Compatible" content="IE=edge"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no"/>
+    <title th:text="#{cas.mfa.inalogy.download.title}">Download the app</title>
+    <link href="../../static/css/cas.css" rel="stylesheet" th:remove="tag"/>
+
+    <style>
+        #download-card h2 { margin: 0 0 .5rem; font-weight: 700; }
+        #download-card p.lead { margin: 0 0 1rem; color: #6c757d; }
+        #download-card .qr-col { max-width: 240px; }
+        #download-card #imageQRCode { width: 100%; max-width: 220px; height: auto; }
+        #download-card .badges img { display: block; }
+        #download-card .badges a { line-height: 0; }
+        #download-card .steps { margin-top: .25rem; }
+        #download-card .actions { margin-top: 1rem; display: flex; gap: .5rem; flex-wrap: wrap; justify-content: center; }
+        @media (max-width: 768px) {
+            #download-card .row { row-gap: 1rem; }
+            #download-card .qr-col { max-width: 100%; text-align: center; }
+        }
+    </style>
+</head>
+
+<body id="cas">
+<main class="container mt-3 mb-3">
+    <div layout:fragment="content" id="download-card" class="mdc-card card p-4 m-auto w-lg-66">
+
+        <h2 class="mb-2" th:text="#{cas.mfa.inalogy.download.heading}">
+            Get Inalogy Authenticator
+        </h2>
+        <p class="lead" th:text="#{cas.mfa.inalogy.download.lead}">
+            Scan the QR code or use the buttons below.
+        </p>
+
+        <div class="row align-items-start g-3">
+            <div class="col-md-4 qr-col text-center">
+                <img id="imageQRCode"
+                     class="img-fluid"
+                     th:if="${qrDataUri}"
+                     th:src="'data:image/png;base64,' + ${qrDataUri}"
+                     th:alt="#{cas.mfa.inalogy.download.qr.alt}"
+                     alt="QR code"/>
+
+                <div class="actions">
+                    <form method="post" th:action="@{/login}">
+                        <input type="hidden" name="_eventId" value="submit"/>
+                        <input type="hidden" name="execution" th:if="${flowExecutionKey}" th:value="${flowExecutionKey}"/>
+                        <button class="mdc-button mdc-button--raised btn btn-primary" type="submit">
+                            <span class="mdc-button__label" th:text="#{cas.mfa.inalogy.download.cta.continue}">Continue</span>
+                        </button>
+                    </form>
+
+                    <form method="post" th:action="@{/login}">
+                        <input type="hidden" name="_eventId" value="cancel"/>
+                        <input type="hidden" name="execution" th:if="${flowExecutionKey}" th:value="${flowExecutionKey}"/>
+                        <button class="mdc-button mdc-button--outline btn btn-outline-secondary" type="submit">
+                            <span class="mdc-button__label" th:text="#{cas.mfa.inalogy.download.cta.back}">Back</span>
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <div class="col-md-8">
+                <p class="text-muted mb-3"
+                   th:text="#{cas.mfa.inalogy.download.qr.hint}">
+                    The QR code will automatically redirect you to the correct store for your device.
+                </p>
+
+                <div class="badges d-flex flex-wrap gap-3 align-items-center mb-3">
+                    <a th:if="${appStoreUrl}" th:href="${appStoreUrl}" target="_blank" rel="noopener">
+                        <img src="/images/store-badges/appstore.svg"
+                             height="48"
+                             th:alt="#{cas.mfa.inalogy.download.badge.appstore.alt}"
+                             alt="Download on the App Store"/>
+                    </a>
+                    <a th:if="${googlePlayUrl}" th:href="${googlePlayUrl}" target="_blank" rel="noopener">
+                        <img src="/images/store-badges/googleplay.svg"
+                             height="48"
+                             th:alt="#{cas.mfa.inalogy.download.badge.googleplay.alt}"
+                             alt="Get it on Google Play"/>
+                    </a>
+                </div>
+
+                <h5 class="mt-2 mb-2" th:text="#{cas.mfa.inalogy.download.steps.title}">How it works</h5>
+                <ol class="steps mb-0">
+                    <li th:text="#{cas.mfa.inalogy.download.steps.1}">
+                        Install the Inalogy Authenticator app from your app store.
+                    </li>
+                    <li th:text="#{cas.mfa.inalogy.download.steps.2}">
+                        Return here and click “Continue”.
+                    </li>
+                    <li th:text="#{cas.mfa.inalogy.download.steps.3}">
+                        Follow the on-screen instructions to complete device registration.
+                    </li>
+                </ol>
+            </div>
+        </div>
+
+    </div>
+</main>
+</body>
+</html>

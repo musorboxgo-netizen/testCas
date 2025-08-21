@@ -1,0 +1,97 @@
+plugins {
+    id 'java-library'
+    id 'maven-publish'
+}
+
+java {
+    toolchain { languageVersion.set(JavaLanguageVersion.of(21)) }
+    withSourcesJar()
+    withJavadocJar()
+}
+
+repositories {
+    mavenLocal()
+    mavenCentral()
+    maven { url = 'https://oss.sonatype.org/content/repositories/releases' }
+    maven {
+        url = 'https://oss.sonatype.org/content/repositories/snapshots'
+        mavenContent { snapshotsOnly() }
+    }
+    maven {
+        url = "https://repository.apache.org/content/repositories/snapshots"
+        mavenContent { snapshotsOnly() }
+    }
+    maven {
+        url = 'https://build.shibboleth.net/nexus/content/repositories/releases/'
+        mavenContent { releasesOnly() }
+    }
+    maven {
+        url = "https://build.shibboleth.net/nexus/content/repositories/snapshots"
+        mavenContent { snapshotsOnly() }
+    }
+    maven {
+        url = "https://repo.spring.io/milestone"
+        mavenContent { releasesOnly() }
+    }
+}
+
+dependencies {
+    implementation "org.apereo.cas:cas-server-support-otp-mfa:${casVersion}"
+    implementation "org.apereo.cas:cas-server-support-thymeleaf:${casVersion}"
+    implementation "org.apereo.cas:cas-server-support-trusted-mfa:${casVersion}"
+    implementation "org.apereo.cas:cas-server-support-otp-mfa-core:${casVersion}"
+    implementation "org.apereo.cas:cas-server-support-hazelcast-core:${casVersion}"
+    implementation "org.apereo.cas:cas-server-support-trusted-mfa-core:${casVersion}"
+    implementation "org.apereo.cas:cas-server-support-hazelcast-ticket-registry:${casVersion}"
+
+
+    implementation "org.apereo.cas:cas-server-core-web-api:${casVersion}"
+    implementation "org.apereo.cas:cas-server-core-webflow:${casVersion}"
+    implementation "org.apereo.cas:cas-server-core-services:${casVersion}"
+    implementation "org.apereo.cas:cas-server-core-util-api:${casVersion}"
+    implementation "org.apereo.cas:cas-server-core-rest-api:${casVersion}"
+    implementation "org.apereo.cas:cas-server-core-webflow-mfa:${casVersion}"
+    implementation "org.apereo.cas:cas-server-core-webflow-api:${casVersion}"
+    implementation "org.apereo.cas:cas-server-core-multitenancy:${casVersion}"
+    implementation "org.apereo.cas:cas-server-core-multitenancy:${casVersion}"
+    implementation "org.apereo.cas:cas-server-core-notifications:${casVersion}"
+    implementation "org.apereo.cas:cas-server-core-webflow-mfa-api:${casVersion}"
+    implementation "org.apereo.cas:cas-server-core-configuration-api:${casVersion}"
+    implementation "org.apereo.cas:cas-server-core-authentication-api:${casVersion}"
+    implementation "org.apereo.cas:cas-server-core-authentication-mfa:${casVersion}"
+    implementation "org.apereo.cas:cas-server-core-authentication-mfa-api:${casVersion}"
+
+    implementation "com.hazelcast:hazelcast:5.3.6"
+    compileOnly "org.projectlombok:lombok:1.18.32"
+    annotationProcessor "org.projectlombok:lombok:1.18.32"
+
+    testImplementation "org.springframework.boot:spring-boot-starter-test:${casVersion}"
+}
+
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            from components.java
+
+            def buildNumber = System.getenv("CI_PIPELINE_IID") ?: "0"
+
+            groupId = project.group
+            artifactId = 'mfa-inalogy'
+            version = "${project.moduleBaseVersion}.${buildNumber}-SNAPSHOT"
+        }
+    }
+    repositories {
+        if (project.hasProperty('gitlabProjectId')) {
+            maven {
+                name = 'GitLab'
+                url = uri("https://gitlab.ami.cz/api/v4/projects/${project.findProperty('gitlabProjectId')}/packages/maven")
+                credentials(HttpHeaderCredentials) {
+                    name = System.getenv('GL_AUTH_HEADER') ?: 'Private-Token'
+                    value = System.getenv('GITLAB_PRIVATE_TOKEN') ?: ''
+                }
+                authentication { create('header', HttpHeaderAuthentication) }
+            }
+        }
+//        mavenLocal()
+    }
+}
