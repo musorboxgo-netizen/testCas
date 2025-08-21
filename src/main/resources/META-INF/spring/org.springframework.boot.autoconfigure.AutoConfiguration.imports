@@ -1,7 +1,0 @@
-org.apereo.cas.config.CasOverlayOverrideConfiguration
-org.apereo.cas.config.CasGoogleAuthenticatorAutoConfiguration
-cz.ami.cas.config.InalogyAuthenticatorAuthenticationEventExecutionPlanConfiguration
-cz.ami.cas.config.InalogyAuthenticatorAuthenticationMultifactorProviderBypassConfiguration
-cz.ami.cas.config.InalogyAuthenticatorWebflowConfiguration
-cz.ami.cas.config.InalogyAuthenticatorControllerConfiguration
-cz.ami.cas.config.CasInalogyAuthenticatorAutoConfiguration
